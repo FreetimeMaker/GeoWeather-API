@@ -4,27 +4,27 @@ const { generateToken, generateRefreshToken } = require('../config/auth');
 const AuthController = {
   async register(req, res) {
     try {
-      const { email, password, name } = req.body;
+      const { username, password, name } = req.body;
 
-      if (!email || !password || !name) {
-        return res.status(400).json({ message: 'Email, password and name required' });
+      if (!username || !password || !name) {
+        return res.status(400).json({ message: 'Username, password and name required' });
       }
 
-      const existingUser = await User.findByEmail(email);
+      const existingUser = await User.findByUsername(username);
       if (existingUser) {
-        return res.status(400).json({ message: 'Email already registered' });
+        return res.status(400).json({ message: 'Username already taken' });
       }
 
-      const user = await User.create(email, password, name);
+      const user = await User.create(username, password, name);
 
-      const token = generateToken(user.id, user.email);
+      const token = generateToken(user.id, user.username);
       const refreshToken = generateRefreshToken(user.id);
 
       res.status(201).json({
         message: 'User successfully registered',
         user: {
           id: user.id,
-          email: user.email,
+          username: user.username,
           name: user.name,
           subscription_tier: user.subscription_tier,
         },
@@ -38,13 +38,13 @@ const AuthController = {
 
   async login(req, res) {
     try {
-      const { email, password } = req.body;
+      const { username, password } = req.body;
 
-      if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password required' });
+      if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password required' });
       }
 
-      const user = await User.findByEmail(email);
+      const user = await User.findByUsername(username);
       if (!user) {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
@@ -54,14 +54,14 @@ const AuthController = {
         return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      const token = generateToken(user.id, user.email);
+      const token = generateToken(user.id, user.username);
       const refreshToken = generateRefreshToken(user.id);
 
       res.status(200).json({
         message: 'Successfully logged in',
         user: {
           id: user.id,
-          email: user.email,
+          username: user.username,
           name: user.name,
           subscription_tier: user.subscription_tier,
         },

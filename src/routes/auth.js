@@ -6,7 +6,7 @@ const router = express.Router();
 /**
  * @route   POST /api/auth/register
  * @desc    Register a new user
- * @body    { email, password, name }
+ * @body    { username, password, name }
  * @returns { user, token, refreshToken }
  */
 router.post('/register', AuthController.register);
@@ -14,7 +14,7 @@ router.post('/register', AuthController.register);
 /**
  * @route   POST /api/auth/login
  * @desc    Log in user
- * @body    { email, password }
+ * @body    { username, password }
  * @returns { user, token, refreshToken }
  */
 router.post('/login', AuthController.login);
