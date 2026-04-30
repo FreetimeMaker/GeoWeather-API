@@ -161,7 +161,57 @@ doctl auth init
 doctl apps create --spec app.yaml
 ```
 
-## 5. Google Cloud Run
+## 5. Vercel (Serverless)
+
+### Vorbereitung
+
+```bash
+# Vercel CLI installieren
+npm install -g vercel
+
+# Anmelden
+vercel login
+```
+
+### Vercel Postgres einrichten
+
+1. Gehe zu [Vercel Dashboard](https://vercel.com/dashboard)
+2. Wähle dein Projekt
+3. Gehe zu Storage > Create Database > Postgres
+4. Kopiere die `DATABASE_URL`
+
+### Deployment
+
+```bash
+# Im Projekt-Verzeichnis
+vercel
+
+# Environment-Variablen setzen
+vercel env add DATABASE_URL
+vercel env add JWT_SECRET
+vercel env add OPENWEATHER_API_KEY
+vercel env add WEATHER_API_KEY
+vercel env add CORS_ORIGIN
+
+# Deployen
+vercel --prod
+```
+
+### Migrationen ausführen
+
+Nach dem ersten Deployment:
+
+```bash
+vercel run npm run db:migrate
+```
+
+### Anmerkungen
+
+- Vercel verwendet Serverless-Funktionen, daher sind WebSocket-Verbindungen (Socket.io) nicht unterstützt
+- Für Produktion mit hoher Last erwäge Heroku oder AWS
+- Kosten: Free Tier verfügbar, bezahlt ab 1000 Funktionsaufrufen/Monat
+
+## 6. Google Cloud Run
 
 ### Vorbereitung
 
