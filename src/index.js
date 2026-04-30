@@ -39,6 +39,8 @@ app.get('/', (req, res) => {
       favorites: '/api/favorites',
       weatherHistory: '/api/weather-history',
       subscriptions: '/api/subscriptions',
+      'subscriptions/pricing': '/api/subscriptions/pricing',
+      'subscriptions/buy': '/api/subscriptions/buy',
       premium: '/api/premium'
     }
   });

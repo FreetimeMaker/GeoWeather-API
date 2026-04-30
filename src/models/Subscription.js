@@ -7,6 +7,13 @@ const Subscription = {
     PREMIUM: 'premium',
   },
 
+  PRICING: {
+    premium: {
+      monthly: 9.99,
+      yearly: 99.99,
+    },
+  },
+
   FEATURES: {
     free: {
       maxFavorites: 5,
