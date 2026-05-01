@@ -15,12 +15,5 @@
   "env": {
     "NODE_ENV": "production"
   },
-  "regions": ["fra1"],
-  "framework": "express",
-  "installs": [
-    {
-      "pkg": "pg",
-      "ver": "^8.10.0"
-    }
-  ]
+  "regions": ["fra1"]
 }
