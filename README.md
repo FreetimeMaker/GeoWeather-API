@@ -1,9 +1,7 @@
 # 🌤️ GeoWeather API
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-%3E%3D15-blue)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue?logo=docker)](https://www.docker.com/)
 [![Tests](https://img.shields.io/badge/Tests-Jest-green?logo=jest)](https://jestjs.io/)
 
 Eine produktionsreife Cloud-basierte REST API für eine Wetter-Anwendung mit **Favoriten-Sync**, **History-Archiv** und flexiblem **Premium-Abonnement-System**.

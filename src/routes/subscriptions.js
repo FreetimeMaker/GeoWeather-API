@@ -1,5 +1,6 @@
 const express = require('express');
 const SubscriptionController = require('../controllers/SubscriptionController');
+const Subscription = require('../models/Subscription');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
@@ -32,26 +33,22 @@ router.put('/', SubscriptionController.upgradeSubscription);
 
 /**
  * @route   GET /api/subscriptions/pricing
- * @desc    Get available subscription pricing options
+ * @desc    Get available one-time pricing options (NO monthly/yearly)
  * @returns { tiers }
  */
 router.get('/pricing', (req, res) => {
   try {
     const pricing = {};
 
+    // One-time lifetime pricing (NO recurring)
     Object.keys(Subscription.PRICING).forEach(tier => {
       pricing[tier] = {
-        monthly: Subscription.PRICING[tier].monthly,
-        yearly: Subscription.PRICING[tier].yearly,
-        savings: {
-          amount: (Subscription.PRICING[tier].monthly * 12) - Subscription.PRICING[tier].yearly,
-          percentage: Math.round(((Subscription.PRICING[tier].monthly * 12 - Subscription.PRICING[tier].yearly) / (Subscription.PRICING[tier].monthly * 12)) * 100),
-        },
+        one_time: Subscription.PRICING[tier].one_time,
       };
     });
 
     res.status(200).json({
-      message: 'Pricing options retrieved',
+      message: 'One-time pricing retrieved',
       currency: 'USD',
       tiers: pricing,
     });
@@ -61,15 +58,123 @@ router.get('/pricing', (req, res) => {
 });
 
 /**
+ * @route   GET /api/subscriptions/upgrade-pricing
+ * @desc    Get upgrade pricing with available credits (ONE-TIME only)
+ * @query   targetTier - The tier to upgrade to
+ * @returns { upgrade pricing }
+ */
+router.get('/upgrade-pricing', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { targetTier } = req.query;
+
+    if (!targetTier) {
+      return res.status(400).json({
+        message: 'targetTier query parameter is required',
+      });
+    }
+
+    if (!Object.values(Subscription.TIERS).includes(targetTier)) {
+      return res.status(400).json({
+        message: 'Invalid target tier',
+      });
+    }
+
+    const upgradePricing = await Subscription.getUpgradePricing(userId, targetTier);
+
+    if (!upgradePricing.valid) {
+      return res.status(400).json({
+        message: upgradePricing.message,
+        currentTier: upgradePricing.currentTier,
+        targetTier: upgradePricing.targetTier,
+      });
+    }
+
+    res.status(200).json({
+      message: 'Upgrade pricing retrieved',
+      currentTier: upgradePricing.currentTier,
+      targetTier: upgradePricing.targetTier,
+      credit: upgradePricing.credit,
+      price: upgradePricing.price,
+      finalPrice: upgradePricing.finalPrice,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/subscriptions/upgrade
+ * @desc    Process subscription upgrade with credit application (ONE-TIME only)
+ * @body    { targetTier }
+ * @returns { upgraded subscription }
+ */
+router.post('/upgrade', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { targetTier } = req.body;
+
+    if (!targetTier) {
+      return res.status(400).json({
+        message: 'targetTier is required',
+      });
+    }
+
+    // Get current subscription
+    const currentSubscription = await Subscription.getSubscription(userId);
+    const currentTier = currentSubscription?.tier || Subscription.TIERS.FREE;
+
+    // Validate upgrade path
+    if (!Subscription.canUpgrade(currentTier, targetTier)) {
+      return res.status(400).json({
+        message: `Cannot upgrade from ${currentTier} to ${targetTier}`,
+        availableUpgrades: Subscription.getAvailableUpgrades(currentTier),
+      });
+    }
+
+    // Calculate upgrade credit (only for existing one-time purchases)
+    const credit = await Subscription.calculateUpgradeCredit(currentSubscription, targetTier);
+
+    let subscription;
+
+    if (currentSubscription) {
+      // Update existing subscription to new tier (one-time)
+      subscription = await Subscription.updateSubscription(
+        currentSubscription.id,
+        targetTier
+      );
+    } else {
+      // Create new subscription (from FREE)
+      subscription = await Subscription.createSubscription(
+        userId,
+        targetTier,
+        null
+      );
+    }
+
+    res.status(200).json({
+      message: 'Subscription upgraded successfully',
+      subscription: {
+        ...subscription,
+        features: Subscription.FEATURES[subscription.tier],
+      },
+      upgradeCredit: credit,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
  * @route   POST /api/subscriptions/buy
- * @desc    Generate payment link for subscription purchase
- * @body    { tier, billingCycle: 'monthly' | 'yearly' }
- * @returns { paymentUrl, tier, billingCycle, price, savings? }
+ * @desc    Generate payment link for one-time lifetime purchase (NO monthly/yearly)
+ * @body    { tier }
+ * @returns { paymentUrl, tier, price }
  */
 router.post('/buy', authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { tier, billingCycle = 'monthly' } = req.body;
+    const { tier } = req.body;
 
     if (!tier || !Object.values(Subscription.TIERS).includes(tier)) {
       return res.status(400).json({
@@ -77,32 +182,25 @@ router.post('/buy', authMiddleware, async (req, res) => {
       });
     }
 
-    if (!['monthly', 'yearly'].includes(billingCycle)) {
+    // Get one-time price
+    const price = Subscription.PRICING[tier]?.one_time;
+
+    if (!price) {
       return res.status(400).json({
-        message: 'Invalid billing cycle. Use "monthly" or "yearly"',
+        message: `One-time purchase not available for ${tier} tier`,
       });
     }
 
-    const pricing = Subscription.PRICING[tier];
-    const price = pricing[billingCycle];
-
-    let savings = null;
-    if (billingCycle === 'yearly') {
-      const monthlyTotal = pricing.monthly * 12;
-      savings = monthlyTotal - price;
-    }
-
     // Generate payment URL (placeholder - integrate with Stripe/PayPal/etc.)
-    const paymentUrl = `https://payment.example.com/subscribe?user=${userId}&tier=${tier}&cycle=${billingCycle}`;
+    const paymentUrl = `https://payment.example.com/subscribe?user=${userId}&tier=${tier}&type=one_time`;
 
     res.status(200).json({
       message: 'Payment link generated',
       paymentUrl,
       tier,
-      billingCycle,
+      paymentType: 'one_time',
       price,
       currency: 'USD',
-      savings: savings ? { amount: savings, description: `Save $${savings.toFixed(2)} vs monthly` } : null,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

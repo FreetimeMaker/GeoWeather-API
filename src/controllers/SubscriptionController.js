@@ -13,6 +13,7 @@ const SubscriptionController = {
         });
       }
 
+      // One-time only subscription
       const subscription = await Subscription.createSubscription(userId, tier, paymentMethod);
 
       res.status(201).json({
@@ -51,7 +52,7 @@ const SubscriptionController = {
     }
   },
 
-  async upgradeSubscription(req, res) {
+async upgradeSubscription(req, res) {
     try {
       const userId = req.user.userId;
       const { tier, paymentMethod } = req.body;
@@ -63,6 +64,7 @@ const SubscriptionController = {
         });
       }
 
+      // One-time only upgrade
       const updatedSubscription = await Subscription.updateSubscription(
         currentSubscription.id,
         tier
