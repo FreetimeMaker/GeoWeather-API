@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const Subscription = {
   TIERS: {
     FREE: 'free',
-    PREMIUM: 'premium',
+    FREEMIUM: 'freemium',
   },
 
   // ONE-TIME payment types (no recurring)
@@ -14,15 +14,15 @@ const Subscription = {
 
   // One-time lifetime pricing (NO monthly/yearly)
   PRICING: {
-    premium: {
-      one_time: 199.99,
+    freemium: {
+      one_time: 5.00, // One-time lifetime price for premium tier
     },
   },
 
   // Define valid upgrade paths: from -> [allowed upgrades to]
   UPGRADE_PATHS: {
-    free: ['premium'],
-    premium: [], // Cannot upgrade from premium (top tier)
+    free: ['freemium'],
+    freemium: [], // Cannot upgrade from freemium (top tier)
   },
 
   FEATURES: {
@@ -32,14 +32,14 @@ const Subscription = {
       dataSourcesCount: 1,
       pushNotifications: false,
       mapLayers: false,
-      dataExport: false,
+      dataExport: true,
     },
-    premium: {
-      maxFavorites: 999,
-      maxHistoryDays: 7,
-      dataSourcesCount: 3,
+    freemium: {
+      maxFavorites: 8,
+      maxHistoryDays: 5,
+      dataSourcesCount: 2,
       pushNotifications: true,
-      mapLayers: true,
+      mapLayers: false,
       dataExport: true,
     },
   },
