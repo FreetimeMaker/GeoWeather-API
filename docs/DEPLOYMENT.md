@@ -178,7 +178,7 @@ vercel login
 1. Go to [Vercel Dashboard](https://vercel.com/dashboard)
 2. Select your project
 3. Go to Storage > Create Database > Postgres
-4. Copy the `DATABASE_URL`
+4. Copy the `POSTGRES_CONNECTION_STRING` or use the `DATABASE_URL`
 
 ### Deployment
 
@@ -186,30 +186,63 @@ vercel login
 # In project directory
 vercel
 
-# Set environment variables
-vercel env add DATABASE_URL
-vercel env add JWT_SECRET
-vercel env add OPENWEATHER_API_KEY
-vercel env add WEATHER_API_KEY
-vercel env add CORS_ORIGIN
+# Link project to Vercel (first time)
+vercel link
 
-# Deploy
+# Add environment variables
+vercel env add POSTGRES_CONNECTION_STRING
+# Enter your connection string when prompted
+
+# Add other secrets (optional - not shown in terminal for security)
+vercel env add JWT_SECRET production
+vercel env add OPENWEATHER_API_KEY production
+
+# For local development, create a .env.local file
+# See .env.example for required variables
+
+# Deploy to production
 vercel --prod
 ```
 
+### Environment Variables
+
+The app uses these database environment variables (in order of priority):
+
+1. `POSTGRES_CONNECTION_STRING` - Vercel Postgres connection string (recommended)
+2. `DATABASE_URL` - Alternative connection string
+3. Individual: `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`
+
 ### Run Migrations
 
-After the first deployment:
+After deploying, run migrations to create tables:
 
 ```bash
-vercel run npm run db:migrate
+vercel exec npm run db:migrate
+```
+
+Or create a database migration endpoint for serverless:
+
+```bash
+# Create a simple migration endpoint in src/index.js
+# POST /api/migrate - runs migrations (protect this endpoint!)
+```
+
+### Health Check
+
+```bash
+# Should return database connection status
+curl https://your-project.vercel.app/api/health
 ```
 
 ### Notes
 
+- The database configuration is optimized for Vercel's serverless environment:
+  - `max: 1` connection in production to avoid connection pool exhaustion
+  - Proper timeout settings
+  - Health check endpoint included
 - Vercel uses serverless functions, so WebSocket connections (Socket.io) are not supported
 - For production with high load, consider Heroku or AWS
-- Costs: Free tier available, paid from 1000 function calls/month
+- Costs: Free tier available for Vercel Postgres
 
 ## 6. Google Cloud Run
 

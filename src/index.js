@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const errorHandler = require('./middleware/errorHandler');
+const database = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -24,8 +25,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Health Check
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date() });
+app.get('/api/health', async (req, res) => {
+  const dbStatus = await database.healthCheck();
+  res.status(200).json({ 
+    status: 'OK', 
+    database: dbStatus ? 'connected' : 'disconnected',
+    timestamp: new Date() 
+  });
 });
 
 // Root Route
