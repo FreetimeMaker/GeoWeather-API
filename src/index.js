@@ -26,12 +26,30 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health Check
 app.get('/api/health', async (req, res) => {
-  const dbStatus = await database.healthCheck();
-  res.status(200).json({ 
-    status: 'OK', 
-    database: dbStatus ? 'connected' : 'disconnected',
-    timestamp: new Date() 
-  });
+  try {
+    const dbStatus = await database.healthCheck();
+    let dbStatusText = 'not_configured';
+    if (dbStatus === null) {
+      dbStatusText = 'not_configured';
+    } else if (dbStatus) {
+      dbStatusText = 'connected';
+    } else {
+      dbStatusText = 'disconnected';
+    }
+    res.status(200).json({ 
+      status: 'OK', 
+      database: dbStatusText,
+      timestamp: new Date() 
+    });
+  } catch (error) {
+    console.error('Health check error:', error.message);
+    res.status(200).json({ 
+      status: 'OK', 
+      database: 'error',
+      error: error.message,
+      timestamp: new Date() 
+    });
+  }
 });
 
 // Root Route

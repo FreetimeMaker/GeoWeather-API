@@ -28,11 +28,17 @@ pool.on('error', (err) => {
 
 // Health check for database connection
 pool.healthCheck = async () => {
+  // If no connection string is configured, skip DB check
+  if (!connectionString && !process.env.DB_HOST) {
+    console.log('No database configured, skipping health check');
+    return null;
+  }
+  
   try {
     const result = await pool.query('SELECT 1');
     return result.rowCount === 1;
   } catch (error) {
-    console.error('Database health check failed:', error);
+    console.error('Database health check failed:', error.message);
     return false;
   }
 };
