@@ -1,10 +1,10 @@
 const pool = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const { generateUUID } = require('../utils/helpers');
 const bcrypt = require('bcryptjs');
 
 const User = {
   async create(username, password, name) {
-    const userId = uuidv4();
+const userId = generateUUID();
     const hashedPassword = await bcrypt.hash(password, 10);
     const createdAt = new Date();
 

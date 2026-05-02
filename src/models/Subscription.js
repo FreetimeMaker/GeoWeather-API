@@ -1,5 +1,5 @@
 const pool = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const { generateUUID } = require('../utils/helpers');
 
 const Subscription = {
   TIERS: {
@@ -47,7 +47,7 @@ const Subscription = {
 async createSubscription(userId, tier, paymentMethod, options = {}) {
     const { paymentType = this.PAYMENT_TYPES.ONE_TIME } = options;
     
-    const subscriptionId = uuidv4();
+const subscriptionId = generateUUID();
     const createdAt = new Date();
     
     // One-time lifetime: set to 100 years (essentially permanent)

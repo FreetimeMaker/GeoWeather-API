@@ -1,9 +1,9 @@
 const pool = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const { generateUUID } = require('../utils/helpers');
 
 const Favorite = {
-  async create(userId, name, latitude, longitude) {
-    const favoriteId = uuidv4();
+async create(userId, name, latitude, longitude) {
+    const favoriteId = generateUUID();
     const createdAt = new Date();
 
     const query = `
@@ -79,8 +79,8 @@ const Favorite = {
     await pool.query(query, [userId]);
 
     // Neue Favoriten einfügen
-    for (const fav of favorites) {
-      const favoriteId = uuidv4();
+for (const fav of favorites) {
+      const favoriteId = generateUUID();
       const createdAt = new Date();
 
       const insertQuery = `

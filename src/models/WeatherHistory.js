@@ -1,9 +1,9 @@
 const pool = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const { generateUUID } = require('../utils/helpers');
 
 const WeatherHistory = {
   async create(userId, location, weatherData, sensorData) {
-    const historyId = uuidv4();
+    const historyId = generateUUID();
     const recordedAt = new Date();
 
     const query = `

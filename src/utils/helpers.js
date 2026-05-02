@@ -1,3 +1,7 @@
+const crypto = require('crypto');
+
+const generateUUID = () => crypto.randomUUID();
+
 const paginate = (page = 1, limit = 20) => {
   const pageNum = Math.max(1, parseInt(page));
   const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
@@ -45,6 +49,7 @@ const getNearbyLocations = (favorites, userLat, userLon, radiusKm = 50) => {
 };
 
 module.exports = {
+  generateUUID,
   paginate,
   formatResponse,
   calculateDistance,

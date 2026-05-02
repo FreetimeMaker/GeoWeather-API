@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { generateUUID } = require('../utils/helpers');
 
 const PushNotificationService = {
   async sendWeatherAlert(userId, latitude, longitude, alertType, message) {
@@ -11,8 +12,7 @@ const PushNotificationService = {
         RETURNING *;
       `;
 
-      const { v4: uuidv4 } = require('uuid');
-      const notificationId = uuidv4();
+const notificationId = generateUUID();
 
       const result = await pool.query(query, [
         notificationId,
