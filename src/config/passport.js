@@ -31,7 +31,7 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         // Try to find existing user by github_id or email
-        const email = profile.emails && profile.emails[0] ? profile.emails[0].value : null;
+        const email = profile.emails?.[0]?.value || null;
         let user = null;
 
         if (email) {
@@ -55,7 +55,7 @@ passport.use(
 // Create new user
         const userId = generateUUID();
         const username = profile.username || `user_${profile.id}`;
-        const name = profile.displayName || profile.username || 'GitHub User';
+        const name = profile.displayName || profile.username || username;
         const githubId = profile.id;
 
         const result = await pool.query(
