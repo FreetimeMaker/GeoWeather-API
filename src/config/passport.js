@@ -1,7 +1,11 @@
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
 const pool = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+
+function generateUUID() {
+  return crypto.randomUUID();
+}
 
 passport.serializeUser((user, done) => {
   done(null, user.id);
@@ -48,8 +52,8 @@ passport.use(
           return done(null, user);
         }
 
-        // Create new user
-        const userId = uuidv4();
+// Create new user
+        const userId = generateUUID();
         const username = profile.username || `user_${profile.id}`;
         const name = profile.displayName || profile.username || 'GitHub User';
         const githubId = profile.id;
