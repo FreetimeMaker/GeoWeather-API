@@ -25,7 +25,7 @@ const Subscription = {
 
 // Define valid upgrade paths: from -> [allowed upgrades to]
   UPGRADE_PATHS: {
-    free: ['freemium'],
+    free: ['freemium', 'premium'],
     freemium: ['premium'],
     premium: [], // Cannot upgrade from premium (top tier)
   },
