@@ -1,12 +1,151 @@
 const express = require('express');
 const SubscriptionController = require('../controllers/SubscriptionController');
 const Subscription = require('../models/Subscription');
+const CryptoPaymentService = require('../services/CryptoPaymentService');
 const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(authMiddleware);
+
+/**
+ * @route   GET /api/subscriptions/crypto/coins
+ * @desc    Get supported cryptocurrencies with USD prices
+ * @returns { coins }
+ */
+router.get('/crypto/coins', async (req, res) => {
+  try {
+    const coins = await CryptoPaymentService.getSupportedCoins();
+    
+    res.status(200).json({
+      message: 'Supported cryptocurrencies',
+      coins,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * @route   GET /api/subscriptions/crypto/price/:tier
+ * @desc    Get crypto price for a subscription tier
+ * @query   crypto - Crypto symbol (eth, btc, usdt, usdc, doge, sol)
+ * @returns { payment details }
+ */
+router.get('/crypto/price/:tier', async (req, res) => {
+  try {
+    const { tier } = req.params;
+    const { crypto = 'eth' } = req.query;
+
+    if (!Object.values(Subscription.TIERS).includes(tier)) {
+      return res.status(400).json({
+        message: 'Invalid subscription tier',
+      });
+    }
+
+    const paymentDetails = await CryptoPaymentService.getPaymentDetails(tier, crypto);
+
+    res.status(200).json({
+      message: 'Crypto payment details',
+      tier: paymentDetails.tier,
+      currency: 'USD',
+      priceUsd: paymentDetails.priceUsd,
+      crypto: paymentDetails.crypto,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * @route   GET /api/subscriptions/crypto/options/:tier
+ * @desc    Get all crypto payment options for a tier
+ * @returns { payment options }
+ */
+router.get('/crypto/options/:tier', async (req, res) => {
+  try {
+    const { tier } = req.params;
+
+    if (!Object.values(Subscription.TIERS).includes(tier)) {
+      return res.status(400).json({
+        message: 'Invalid subscription tier',
+      });
+    }
+
+    const options = await CryptoPaymentService.getAllPaymentOptions(tier);
+    const usdPrice = Subscription.PRICING[tier]?.one_time;
+
+    res.status(200).json({
+      message: 'Crypto payment options',
+      tier,
+      currency: 'USD',
+      priceUsd: usdPrice,
+      options,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/subscriptions/crypto/instructions
+ * @desc    Generate payment instructions for wallet-to-wallet transfer
+ * @body    { tier, crypto }
+ * @returns { payment instructions }
+ */
+router.post('/crypto/instructions', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { tier, crypto = 'eth' } = req.body;
+
+    if (!tier || !Object.values(Subscription.TIERS).includes(tier)) {
+      return res.status(400).json({
+        message: 'Invalid subscription tier',
+      });
+    }
+
+    const instructions = await CryptoPaymentService.generatePaymentInstructions(
+      tier,
+      crypto,
+      userId
+    );
+
+    res.status(200).json({
+      message: 'Payment instructions generated',
+      ...instructions,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
+ * @route   POST /api/subscriptions/crypto/verify
+ * @desc    Verify a crypto payment (placeholder)
+ * @body    { txHash, crypto }
+ * @returns { payment status }
+ */
+router.post('/crypto/verify', async (req, res) => {
+  try {
+    const { txHash, crypto = 'eth' } = req.body;
+
+    if (!txHash) {
+      return res.status(400).json({
+        message: 'txHash is required',
+      });
+    }
+
+    const status = await CryptoPaymentService.verifyPayment(txHash, crypto);
+
+    res.status(200).json({
+      message: 'Payment verification',
+      ...status,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
 /**
  * @route   POST /api/subscriptions
