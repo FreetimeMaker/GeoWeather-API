@@ -227,6 +227,27 @@ router.get('/pricing', (req, res) => {
 });
 
 /**
+ * @route   GET /api/subscriptions/available-providers
+ * @desc    Get weather providers available for user's subscription tier
+ * @returns { providers, tier }
+ */
+router.get('/available-providers', async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const tier = await Subscription.getUserTier(userId);
+    const providers = await Subscription.getAvailableWeatherProviders(userId);
+    
+    res.status(200).json({
+      message: 'Available weather providers for your tier',
+      tier,
+      providers,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+/**
  * @route   GET /api/subscriptions/upgrade-pricing
  * @desc    Get upgrade pricing with available credits (ONE-TIME only)
  * @query   targetTier - The tier to upgrade to

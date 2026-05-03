@@ -33,14 +33,20 @@ router.post('/weather-sources', async (req, res) => {
       });
     }
 
+    // Validate and filter sources based on subscription tier
+    const validSources = await Subscription.validateRequestedSources(userId, sources);
+
     const weatherData = await WeatherDataService.getAggregatedWeather(
       latitude,
       longitude,
-      sources
+      validSources
     );
 
     res.status(200).json({
-      message: 'Aggregated weather data',
+      message: 'Aggregated weather data (tier-filtered)',
+      requestedSources: sources,
+      usedSources: validSources,
+      availableProviders: await Subscription.getAvailableWeatherProviders(userId),
       data: weatherData,
     });
   } catch (error) {

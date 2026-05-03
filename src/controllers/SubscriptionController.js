@@ -45,6 +45,7 @@ const SubscriptionController = {
         subscription: {
           ...subscription,
           features: Subscription.FEATURES[subscription.tier],
+          availableWeatherProviders: Subscription.getAvailableProviders(subscription.tier),
         },
       });
     } catch (error) {
@@ -75,6 +76,7 @@ async upgradeSubscription(req, res) {
         subscription: {
           ...updatedSubscription,
           features: Subscription.FEATURES[updatedSubscription.tier],
+          availableWeatherProviders: Subscription.getAvailableProviders(updatedSubscription.tier),
         },
       });
     } catch (error) {
@@ -89,11 +91,13 @@ async upgradeSubscription(req, res) {
       const tier = subscription?.tier || Subscription.TIERS.FREE;
 
       const features = Subscription.FEATURES[tier];
+      const availableProviders = Subscription.getAvailableProviders(tier);
 
       res.status(200).json({
         message: 'Features retrieved',
         tier,
         features,
+        availableWeatherProviders: availableProviders,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });

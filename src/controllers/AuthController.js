@@ -42,6 +42,37 @@ const AuthController = {
   },
 
   // ---------------------------------------------------------
+  // GitHub OAuth – Mobile Callback (JSON response for Android/iOS)
+  // ---------------------------------------------------------
+  githubMobileCallback(req, res) {
+    try {
+      const user = req.user;
+
+      const token = generateToken(user.id, user.username);
+      const refreshToken = generateRefreshToken(user.id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'GitHub authentication successful',
+        user: {
+          id: user.id,
+          username: user.username,
+          name: user.name || user.username,
+          avatar_url: user.avatar_url || null,
+          subscription_tier: user.subscription_tier || 'freemium',
+        },
+        token,
+        refreshToken,
+      });
+    } catch (error) {
+      return res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+  },
+
+  // ---------------------------------------------------------
   // Registrierung (Username + Passwort)
   // ---------------------------------------------------------
   async register(req, res) {

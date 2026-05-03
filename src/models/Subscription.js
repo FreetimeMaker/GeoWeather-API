@@ -50,11 +50,48 @@ const Subscription = {
     premium: {
       maxFavorites: 12,
       maxHistoryDays: 7,
-      dataSourcesCount: 3,
+      dataSourcesCount: 4,
       pushNotifications: true,
       mapLayers: true,
       dataExport: true,
     },
+  },
+
+  // Weather API providers available per tier
+  PROVIDERS_BY_TIER: {
+    free: ['openmeteo'],
+    freemium: ['openmeteo', 'openweather'],
+    premium: ['openmeteo', 'openweather', 'weatherapi', 'qweather'],
+  },
+
+  getAvailableProviders(tier) {
+    return this.PROVIDERS_BY_TIER[tier] || this.PROVIDERS_BY_TIER.free;
+  },
+
+  async getUserTier(userId) {
+    const subscription = await this.getSubscription(userId);
+    return subscription?.tier || this.TIERS.FREE;
+  },
+
+  async getAvailableWeatherProviders(userId) {
+    const tier = await this.getUserTier(userId);
+    return this.getAvailableProviders(tier);
+  },
+
+  async validateRequestedSources(userId, requestedSources) {
+    const tier = await this.getUserTier(userId);
+    const available = await this.getAvailableWeatherProviders(userId);
+    const validSources = requestedSources.filter(source => 
+      available.includes(source.toLowerCase())
+    );
+
+    if (validSources.length === 0) {
+      throw new Error(
+        `No valid providers for your tier (${tier}). Available: ${available.join(', ')}. Requested: ${requestedSources.join(', ')}`
+      );
+    }
+
+    return validSources;
   },
 
 async createSubscription(userId, tier, paymentMethod, options = {}) {

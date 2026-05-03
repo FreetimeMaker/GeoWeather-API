@@ -24,4 +24,16 @@ router.get(
   AuthController.githubCallback
 );
 
+// GitHub OAuth - Mobile Callback (JSON for Android/iOS)
+/**
+ * @route   GET /api/auth/github/mobile-callback
+ * @desc    GitHub OAuth mobile callback (JSON response)
+ * @returns { success, user, token, refreshToken }
+ */
+router.get(
+  '/github/mobile-callback',
+  passport.authenticate('github', { session: false }),
+  AuthController.githubMobileCallback
+);
+
 module.exports = router;

@@ -36,6 +36,43 @@ npm run dev
 ### Authentication
 - `POST /api/auth/register` - Registrierung
 - `POST /api/auth/login` - Anmeldung
+- `GET /api/auth/github` - GitHub OAuth (Web)
+- `GET /api/auth/github/mobile-callback` - **NEW** GitHub OAuth Mobile (Android/iOS JSON)
+
+| Tier | Verfügbare Wetter-APIs | Anzahl |
+|------|-----------------------|--------|
+| Free | openmeteo | 1 |
+| Freemium | openmeteo, openweather, weatherapi | 3 |
+| Premium | alle 4 (inkl. qweather) | 4 |
+
+**🌐 GitHub OAuth Setup für Android/iOS Apps:**
+
+1. **GitHub App erstellen**: https://github.com/settings/applications/new
+   - Homepage: `https://yourapp.com`
+   - Callback URLs: 
+     ```
+     https://geo-weather-api.vercel.app/api/auth/github/callback
+     geoweather://auth/callback
+     https://yourapp.com/auth/github/callback  (optional)
+     ```
+
+2. **Environment Vars setzen**:
+   ```
+   GITHUB_CLIENT_ID=your_client_id
+   GITHUB_CLIENT_SECRET=your_client_secret
+   ```
+
+3. **In Android App**:
+   - WebView oder Custom Chrome Tab zu `/api/auth/github`
+   - Nach OAuth: Parse `geoweather://auth/callback?token=...` deep link
+   - Fallback: Call `/api/auth/github/mobile-callback` direkt
+
+4. **Testen**:
+   ```bash
+   curl "https://geo-weather-api.vercel.app/api/auth/github/mobile-callback" -H "Cookie: your_session_if_needed"
+   ```
+
+**💡 Tipp**: Mobile Callback gibt JSON zurück - perfekt für native Apps! 🚀
 
 ### Favoriten (mit Token)
 - `POST /api/favorites` - Neuer Favorit
@@ -189,7 +226,9 @@ npm run db:migrate      # Migrationen ausführen
 
 ### Wetter-Daten
 - **OpenWeather API** - `OPENWEATHER_API_KEY`
-- **WeatherAPI** - `WEATHER_API_KEY`
+- **WeatherAPI** - `WEATHER_API_KEY`  
+- **QWeather API** ⭐ **NEW** - `QWEATHER_API_KEY` (https://dev.qweather.com/)
+- **Open-Meteo** - Free, no key needed
 
 ### Notifications
 - **Firebase Cloud Messaging** - `PUSH_NOTIFICATION_SERVICE=firebase`
