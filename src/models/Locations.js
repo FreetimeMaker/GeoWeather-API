@@ -1,103 +1,105 @@
-const pool = require('../config/database');
+const supabase = require('../config/database');
 const { generateUUID } = require('../utils/helpers');
 
 const Locations = {
   async create(userId, name, latitude, longitude) {
     const locationId = generateUUID();
-    const createdAt = new Date();
+    const createdAt = new Date().toISOString();
 
-    const query = `
-      INSERT INTO locations (id, user_id, name, latitude, longitude, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *;
-    `;
+    const { data, error } = await supabase
+      .from('locations')
+      .insert({
+        id: locationId,
+        user_id: userId,
+        name,
+        latitude,
+        longitude,
+        created_at: createdAt,
+        updated_at: createdAt
+      })
+      .select()
+      .single();
 
-    const result = await pool.query(query, [
-      locationId,
-      userId,
-      name,
-      latitude,
-      longitude,
-      createdAt,
-      createdAt,
-    ]);
-
-    return result.rows[0];
+    if (error) throw error;
+    return data;
   },
 
   async findByUserId(userId) {
-    const query = `
-      SELECT * FROM locations 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC;
-    `;
+    const { data, error } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-    const result = await pool.query(query, [userId]);
-    return result.rows;
+    if (error) throw error;
+    return data || [];
   },
 
   async findById(locationId) {
-    const query = 'SELECT * FROM locations WHERE id = $1';
-    const result = await pool.query(query, [locationId]);
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('id', locationId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
   },
 
   async update(locationId, userId, data) {
     const { name, latitude, longitude } = data;
-    const query = `
-      UPDATE locations 
-      SET name = COALESCE($3, name),
-          latitude = COALESCE($4, latitude),
-          longitude = COALESCE($5, longitude),
-          updated_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING *;
-    `;
+    const { data: updatedData, error } = await supabase
+      .from('locations')
+      .update({
+        name,
+        latitude,
+        longitude,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', locationId)
+      .eq('user_id', userId)
+      .select()
+      .single();
 
-    const result = await pool.query(query, [
-      locationId,
-      userId,
-      name,
-      latitude,
-      longitude,
-    ]);
-
-    return result.rows[0];
+    if (error) throw error;
+    return updatedData;
   },
 
   async delete(locationId, userId) {
-    const query = 'DELETE FROM locations WHERE id = $1 AND user_id = $2 RETURNING id';
-    const result = await pool.query(query, [locationId, userId]);
-    return result.rowCount > 0;
+    const { error } = await supabase
+      .from('locations')
+      .delete()
+      .eq('id', locationId)
+      .eq('user_id', userId);
+
+    return !error;
   },
 
   async sync(userId, locations) {
-    // Cross-device synchronization
-    const query = `
-      DELETE FROM locations WHERE user_id = $1;
-    `;
-    await pool.query(query, [userId]);
+    // Delete all
+    const { error: deleteError } = await supabase
+      .from('locations')
+      .delete()
+      .eq('user_id', userId);
 
-    // Insert new locations
-    for (const location of locations) {
-      const locationId = generateUUID();
-      const createdAt = new Date();
+    if (deleteError) throw deleteError;
 
-      const insertQuery = `
-        INSERT INTO locations (id, user_id, name, latitude, longitude, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7);
-      `;
+    // Insert new
+    const newLocations = locations.map(loc => ({
+      id: generateUUID(),
+      user_id: userId,
+      name: loc.name,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
 
-      await pool.query(insertQuery, [
-        locationId,
-        userId,
-        location.name,
-        location.latitude,
-        location.longitude,
-        createdAt,
-        createdAt,
-      ]);
-    }
+    const { data, error } = await supabase
+      .from('locations')
+      .insert(newLocations);
+
+    if (error) throw error;
 
     return this.findByUserId(userId);
   },

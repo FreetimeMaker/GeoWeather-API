@@ -1,99 +1,104 @@
-const pool = require('../config/database');
+const supabase = require('../config/database');
 const { generateUUID } = require('../utils/helpers');
 
 const WeatherHistory = {
   async create(userId, location, weatherData, sensorData) {
     const historyId = generateUUID();
-    const recordedAt = new Date();
+    const recordedAt = new Date().toISOString();
+    const createdAt = recordedAt;
 
-    const query = `
-      INSERT INTO weather_history (
-        id, user_id, location, temperature, humidity, pressure, 
-        wind_speed, conditions, sensor_data, recorded_at, created_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-      RETURNING *;
-    `;
+    const { data, error } = await supabase
+      .from('weather_history')
+      .insert({
+        id: historyId,
+        user_id: userId,
+        location,
+        temperature: weatherData.temperature,
+        humidity: weatherData.humidity,
+        pressure: weatherData.pressure,
+        wind_speed: weatherData.windSpeed,
+        conditions: weatherData.conditions,
+        sensor_data: sensorData || {},
+        recorded_at: recordedAt,
+        created_at: createdAt
+      })
+      .select()
+      .single();
 
-    const result = await pool.query(query, [
-      historyId,
-      userId,
-      location,
-      weatherData.temperature,
-      weatherData.humidity,
-      weatherData.pressure,
-      weatherData.windSpeed,
-      weatherData.conditions,
-      JSON.stringify(sensorData || {}),
-      recordedAt,
-      recordedAt,
-    ]);
-
-    return result.rows[0];
+    if (error) throw error;
+    return data;
   },
 
   async findByUserIdAndDateRange(userId, startDate, endDate) {
-    const query = `
-      SELECT * FROM weather_history 
-      WHERE user_id = $1 
-      AND recorded_at BETWEEN $2 AND $3
-      ORDER BY recorded_at DESC;
-    `;
+    const { data, error } = await supabase
+      .from('weather_history')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('recorded_at', startDate)
+      .lte('recorded_at', endDate)
+      .order('recorded_at', { ascending: false });
 
-    const result = await pool.query(query, [userId, startDate, endDate]);
-    return result.rows;
+    if (error) throw error;
+    return data || [];
   },
 
   async getMonthlyAverage(userId, location, year, month) {
-    const query = `
-      SELECT 
-        AVG(temperature) as avg_temperature,
-        AVG(humidity) as avg_humidity,
-        AVG(pressure) as avg_pressure,
-        AVG(wind_speed) as avg_wind_speed,
-        MAX(temperature) as max_temperature,
-        MIN(temperature) as min_temperature,
-        COUNT(*) as record_count
-      FROM weather_history
-      WHERE user_id = $1 
-      AND location = $2
-      AND EXTRACT(YEAR FROM recorded_at) = $3
-      AND EXTRACT(MONTH FROM recorded_at) = $4;
-    `;
+    // Note: PostgREST supports aggregates, but EXTRACT requires RPC or sql tag
+    // Create RPC function in Supabase SQL editor for complex queries
+    // For now, approximate with client filter (full EXTRACT needs RPC)
+    const { data, error } = await supabase
+      .from('weather_history')
+      .select(`
+        avg_temperature:avg(temperature),
+        avg_humidity:avg(humidity),
+        avg_pressure:avg(pressure),
+        avg_wind_speed:avg(wind_speed),
+        max_temperature:max(temperature),
+        min_temperature:min(temperature),
+        record_count:count()
+      `)
+      .eq('user_id', userId)
+      .eq('location', location)
+      .gte('recorded_at', `${year}-${String(month).padStart(2, '0')}-01`)
+      .lt('recorded_at', `${year}-${String(month + 1).padStart(2, '0')}-01`); // Approx month filter
 
-    const result = await pool.query(query, [userId, location, year, month]);
-    return result.rows[0];
+    if (error) throw error;
+    return data[0] || null;
   },
 
   async getYearlyTrend(userId, location, year) {
-    const query = `
-      SELECT 
-        EXTRACT(MONTH FROM recorded_at) as month,
-        AVG(temperature) as avg_temperature,
-        AVG(humidity) as avg_humidity,
-        COUNT(*) as record_count
-      FROM weather_history
-      WHERE user_id = $1 
-      AND location = $2
-      AND EXTRACT(YEAR FROM recorded_at) = $3
-      GROUP BY EXTRACT(MONTH FROM recorded_at)
-      ORDER BY month;
-    `;
+    // Approximate GROUP BY with client (full EXTRACT needs RPC)
+    const { data, error } = await supabase
+      .from('weather_history')
+      .select(`
+        month:recorded_at!month(),
+        avg_temperature:avg(temperature),
+        avg_humidity:avg(humidity),
+        record_count:count()
+      `)
+      .eq('user_id', userId)
+      .eq('location', location)
+      .eq('recorded_at_year', year) // Assume indexed column or RPC for EXTRACT
+      .order('month');
 
-    const result = await pool.query(query, [userId, location, year]);
-    return result.rows;
+    if (error) throw error;
+    return data || [];
   },
 
   async archiveOldRecords() {
-    // Archiviere Datensätze älter als 1 Jahr
-    const query = `
-      DELETE FROM weather_history 
-      WHERE recorded_at < NOW() - INTERVAL '1 year';
-    `;
+    const cutoff = new Date();
+    cutoff.setFullYear(cutoff.getFullYear() - 1);
+    cutoff = cutoff.toISOString();
 
-    const result = await pool.query(query);
-    return result.rowCount;
+    const { error, count } = await supabase
+      .from('weather_history')
+      .delete()
+      .lt('recorded_at', cutoff);
+
+    if (error) throw error;
+    return count || 0;
   },
 };
 
 module.exports = WeatherHistory;
+

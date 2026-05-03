@@ -1,106 +1,107 @@
-const pool = require('../config/database');
+const supabase = require('../config/database');
 const { generateUUID } = require('../utils/helpers');
 
 const Favorite = {
-async create(userId, name, latitude, longitude) {
+  async create(userId, name, latitude, longitude) {
     const favoriteId = generateUUID();
-    const createdAt = new Date();
+    const createdAt = new Date().toISOString();
 
-    const query = `
-      INSERT INTO favorites (id, user_id, name, latitude, longitude, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *;
-    `;
+    const { data, error } = await supabase
+      .from('favorites')
+      .insert({
+        id: favoriteId,
+        user_id: userId,
+        name,
+        latitude,
+        longitude,
+        created_at: createdAt,
+        updated_at: createdAt
+      })
+      .select()
+      .single();
 
-    const result = await pool.query(query, [
-      favoriteId,
-      userId,
-      name,
-      latitude,
-      longitude,
-      createdAt,
-      createdAt,
-    ]);
-
-    return result.rows[0];
+    if (error) throw error;
+    return data;
   },
 
   async findByUserId(userId) {
-    const query = `
-      SELECT * FROM favorites 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC;
-    `;
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-    const result = await pool.query(query, [userId]);
-    return result.rows;
+    if (error) throw error;
+    return data || [];
   },
 
   async findById(favoriteId) {
-    const query = 'SELECT * FROM favorites WHERE id = $1';
-    const result = await pool.query(query, [favoriteId]);
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('id', favoriteId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
   },
 
   async update(favoriteId, userId, data) {
     const { name, latitude, longitude } = data;
-    const query = `
-      UPDATE favorites 
-      SET name = COALESCE($3, name),
-          latitude = COALESCE($4, latitude),
-          longitude = COALESCE($5, longitude),
-          updated_at = NOW()
-      WHERE id = $1 AND user_id = $2
-      RETURNING *;
-    `;
+    const { data: updatedData, error } = await supabase
+      .from('favorites')
+      .update({
+        name,
+        latitude,
+        longitude,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', favoriteId)
+      .eq('user_id', userId)
+      .select()
+      .single();
 
-    const result = await pool.query(query, [
-      favoriteId,
-      userId,
-      name,
-      latitude,
-      longitude,
-    ]);
-
-    return result.rows[0];
+    if (error) throw error;
+    return updatedData;
   },
 
   async delete(favoriteId, userId) {
-    const query = 'DELETE FROM favorites WHERE id = $1 AND user_id = $2 RETURNING id';
-    const result = await pool.query(query, [favoriteId, userId]);
-    return result.rowCount > 0;
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('id', favoriteId)
+      .eq('user_id', userId);
+
+    return !error;
   },
 
   async sync(userId, favorites) {
-    // Wird geräteübergreifend synchronisiert
-    const query = `
-      DELETE FROM favorites WHERE user_id = $1;
-    `;
-    await pool.query(query, [userId]);
+    const { error: deleteError } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', userId);
 
-    // Neue Favoriten einfügen
-for (const fav of favorites) {
-      const favoriteId = generateUUID();
-      const createdAt = new Date();
+    if (deleteError) throw deleteError;
 
-      const insertQuery = `
-        INSERT INTO favorites (id, user_id, name, latitude, longitude, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7);
-      `;
+    const newFavorites = favorites.map(fav => ({
+      id: generateUUID(),
+      user_id: userId,
+      name: fav.name,
+      latitude: fav.latitude,
+      longitude: fav.longitude,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    }));
 
-      await pool.query(insertQuery, [
-        favoriteId,
-        userId,
-        fav.name,
-        fav.latitude,
-        fav.longitude,
-        createdAt,
-        createdAt,
-      ]);
-    }
+    const { data, error } = await supabase
+      .from('favorites')
+      .insert(newFavorites);
+
+    if (error) throw error;
 
     return this.findByUserId(userId);
   },
 };
 
 module.exports = Favorite;
+

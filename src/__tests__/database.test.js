@@ -1,16 +1,17 @@
-const pool = require('../config/database');
+const supabase = require('../config/database');
 
 describe('Database Connection', () => {
   test('should connect to database', async () => {
     try {
-      const result = await pool.query('SELECT 1');
-      expect(result.rows[0]).toEqual({ '?column?': 1 });
+      const { error } = await supabase
+        .from('users')
+        .select('id', { count: 'exact', head: true });
+      
+      expect(error).toBeNull();
     } catch (error) {
-      console.error(error);
+      console.error('Database test failed:', error.message);
+      throw error;
     }
   });
-
-  afterAll(async () => {
-    await pool.end();
-  });
 });
+

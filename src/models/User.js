@@ -1,40 +1,66 @@
-const pool = require('../config/database');
+const supabase = require('../config/database');
 const { generateUUID } = require('../utils/helpers');
 const bcrypt = require('bcryptjs');
 
 const User = {
   async create(username, password, name) {
-const userId = generateUUID();
+    const userId = generateUUID();
     const hashedPassword = await bcrypt.hash(password, 10);
-    const createdAt = new Date();
-
-    const query = `
-      INSERT INTO users (id, username, password, name, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING *;
-    `;
+    const createdAt = new Date().toISOString(); // Supabase prefers ISO strings
 
     try {
-      const result = await pool.query(query, [userId, username, hashedPassword, name, createdAt, createdAt]);
-      return result.rows[0];
-    } catch (error) {
-      if (error.code === '23505') {
-        throw new Error('Username already taken');
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          id: userId,
+          username,
+          password: hashedPassword,
+          name,
+          created_at: createdAt,
+          updated_at: createdAt
+        })
+        .select()
+        .single();
+
+      if (error) {
+        if (error.code === '23505' || error.details?.includes('duplicate key')) {
+          throw new Error('Username already taken');
+        }
+        throw error;
       }
+
+      return data;
+    } catch (error) {
       throw error;
     }
   },
 
   async findById(userId) {
-    const query = 'SELECT * FROM users WHERE id = $1';
-    const result = await pool.query(query, [userId]);
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // No rows
+      throw error;
+    }
+
+    return data;
   },
 
   async findByUsername(username) {
-    const query = 'SELECT * FROM users WHERE username = $1';
-    const result = await pool.query(query, [username]);
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    return data;
   },
 
   async verifyPassword(password, hashedPassword) {
@@ -42,26 +68,35 @@ const userId = generateUUID();
   },
 
   async update(userId, data) {
-    const { username, name, subscription_tier } = data;
-    const query = `
-      UPDATE users 
-      SET username = COALESCE($2, username),
-          name = COALESCE($3, name),
-          subscription_tier = COALESCE($4, subscription_tier),
-          updated_at = NOW()
-      WHERE id = $1
-      RETURNING *;
-    `;
+    const { username, name, subscription_tier } = data; // Fixed: no 'email'
+    const { data: updatedData, error } = await supabase
+      .from('users')
+      .update({
+        username,
+        name,
+        subscription_tier,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
 
-    const result = await pool.query(query, [userId, email, name, subscription_tier]);
-    return result.rows[0];
+    if (error) {
+      throw error;
+    }
+
+    return updatedData;
   },
 
   async delete(userId) {
-    const query = 'DELETE FROM users WHERE id = $1 RETURNING id';
-    const result = await pool.query(query, [userId]);
-    return result.rowCount > 0;
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+
+    return !error;
   },
 };
 
 module.exports = User;
+

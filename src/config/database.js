@@ -1,65 +1,48 @@
-const { Pool } = require('pg');
+const { createClient } = require('@supabase/supabase-js');
 
-// Vercel Postgres uses POSTGRES_CONNECTION_STRING env variable
-// Trim and check if connection string is valid
-const rawConnectionString = process.env.POSTGRES_CONNECTION_STRING || process.env.DATABASE_URL;
-const connectionString = rawConnectionString ? rawConnectionString.trim() : '';
+const supabaseUrl = process.env.SUPABASE_URL?.trim();
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
-// Check if we have valid connection config
-const hasValidConnection = connectionString.length > 0 || 
-  (process.env.DB_HOST && process.env.DB_HOST.length > 0);
+const hasValidConnection = supabaseUrl && supabaseKey;
 
-// Fallback to individual env vars for local development
-const poolConfig = connectionString
-  ? { connectionString }
-  : {
-      user: process.env.DB_USER || 'geoweather_user',
-      password: process.env.DB_PASSWORD || 'password',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT, 10) || 5432,
-      database: process.env.DB_NAME || 'geoweather',
-    };
-
-// Only create pool if we have valid connection config
-let pool = null;
+let supabase = null;
 
 if (hasValidConnection) {
-  pool = new Pool({
-    ...poolConfig,
-    // Vercel serverless optimization
-    max: process.env.NODE_ENV === 'production' ? 1 : 5,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  });
-
-  pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
+  supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
   });
 }
 
-// Health check for database connection
 const healthCheck = async () => {
-  // If no connection string is configured, skip DB check
-  if (!pool) {
+  if (!supabase) {
     return null;
   }
   
   try {
-    const result = await pool.query('SELECT 1');
-    return result.rowCount === 1;
+    const { error } = await supabase
+      .from('users')
+      .select('id', { count: 'exact', head: true });
+    
+    return error === null;
   } catch (error) {
-    console.error('Database health check failed:', error.message);
+    console.error('Supabase health check failed:', error.message);
     return false;
   }
 };
 
-// Export pool or a proxy object
-const dbProxy = pool || {
-  query: async () => { throw new Error('Database not configured'); },
-  end: async () => {},
+const dbProxy = supabase || {
+  from: () => ({
+    select: async () => { throw new Error('Supabase not configured'); },
+    insert: async () => { throw new Error('Supabase not configured'); },
+    update: async () => { throw new Error('Supabase not configured'); },
+    delete: async () => { throw new Error('Supabase not configured'); }
+  })
 };
 
-// Attach healthCheck to proxy
 dbProxy.healthCheck = healthCheck;
 
 module.exports = dbProxy;
+

@@ -1,33 +1,30 @@
-const pool = require('../config/database');
+const supabase = require('../config/database');
 const { generateUUID } = require('../utils/helpers');
 
 const Subscription = {
   TIERS: {
     FREE: 'free',
     FREEMIUM: 'freemium',
-    PREMIUM: 'premium', // Reserved for future use
+    PREMIUM: 'premium',
   },
 
-  // ONE-TIME payment types (no recurring)
   PAYMENT_TYPES: {
     ONE_TIME: 'one_time',
   },
 
-// One-time lifetime pricing (NO monthly/yearly)
   PRICING: {
     freemium: {
-      one_time: 5.00, // One-time lifetime price for freemium tier
+      one_time: 5.00,
     },
     premium: {
-      one_time: 10.00, // One-time lifetime price for premium tier
+      one_time: 10.00,
     }
   },
 
-// Define valid upgrade paths: from -> [allowed upgrades to]
   UPGRADE_PATHS: {
     free: ['freemium', 'premium'],
     freemium: ['premium'],
-    premium: [], // Cannot upgrade from premium (top tier)
+    premium: [],
   },
 
   FEATURES: {
@@ -57,7 +54,6 @@ const Subscription = {
     },
   },
 
-  // Weather API providers available per tier
   PROVIDERS_BY_TIER: {
     free: ['openmeteo'],
     freemium: ['openmeteo', 'openweather'],
@@ -94,90 +90,97 @@ const Subscription = {
     return validSources;
   },
 
-async createSubscription(userId, tier, paymentMethod, options = {}) {
+  async createSubscription(userId, tier, paymentMethod, options = {}) {
     const { paymentType = this.PAYMENT_TYPES.ONE_TIME } = options;
     
-const subscriptionId = generateUUID();
-    const createdAt = new Date();
+    const subscriptionId = generateUUID();
+    const createdAt = new Date().toISOString();
     
-    // One-time lifetime: set to 100 years (essentially permanent)
+    // One-time lifetime: set to 100 years
     let expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 100);
+    expiresAt = expiresAt.toISOString();
 
-    // Get the price for one-time purchase
     let originalPrice = 0;
     if (this.PRICING[tier]) {
       originalPrice = this.PRICING[tier].one_time;
     }
 
-    const query = `
-      INSERT INTO subscriptions (
-        id, user_id, tier, payment_method, payment_type,
-        original_price, created_at, expires_at, is_active
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *;
-    `;
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .insert({
+        id: subscriptionId,
+        user_id: userId,
+        tier,
+        payment_method: paymentMethod,
+        payment_type: paymentType,
+        original_price: originalPrice,
+        created_at: createdAt,
+        expires_at: expiresAt,
+        is_active: tier !== this.TIERS.FREE
+      })
+      .select()
+      .single();
 
-    const result = await pool.query(query, [
-      subscriptionId,
-      userId,
-      tier,
-      paymentMethod,
-      paymentType,
-      originalPrice,
-      createdAt,
-      expiresAt,
-      tier !== this.TIERS.FREE,
-    ]);
+    if (error) throw error;
 
-    // Update user's subscription tier
-    await pool.query(
-      'UPDATE users SET subscription_tier = $1, updated_at = NOW() WHERE id = $2',
-      [tier, userId]
-    );
+    // Update user tier
+    const { error: userError } = await supabase
+      .from('users')
+      .update({ 
+        subscription_tier: tier, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', userId);
 
-    return result.rows[0];
+    if (userError) throw userError;
+
+    return data;
   },
 
   async getSubscription(userId) {
-    const query = 'SELECT * FROM subscriptions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1';
-    const result = await pool.query(query, [userId]);
-    return result.rows[0];
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
   },
 
-async updateSubscription(subscriptionId, tier, options = {}) {
+  async updateSubscription(subscriptionId, tier, options = {}) {
     const { paymentType = this.PAYMENT_TYPES.ONE_TIME } = options;
     
-    // One-time lifetime: set to 100 years (essentially permanent)
     let expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 100);
+    expiresAt = expiresAt.toISOString();
 
-    // Get the price for one-time purchase
     let originalPrice = 0;
     if (this.PRICING[tier]) {
       originalPrice = this.PRICING[tier].one_time;
     }
 
-    const query = `
-      UPDATE subscriptions 
-      SET tier = $2, payment_type = $3, original_price = $4,
-          expires_at = $5, is_active = true
-      WHERE id = $1
-      RETURNING *;
-    `;
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .update({ 
+        tier, 
+        payment_type: paymentType,
+        original_price: originalPrice,
+        expires_at: expiresAt,
+        is_active: true 
+      })
+      .eq('id', subscriptionId)
+      .select()
+      .single();
 
-    const result = await pool.query(query, [
-      subscriptionId, 
-      tier, 
-      paymentType,
-      originalPrice,
-      expiresAt
-    ]);
-    return result.rows[0];
+    if (error) throw error;
+    return data;
   },
 
-async checkFeatureAccess(userId, feature) {
+  async checkFeatureAccess(userId, feature) {
     const subscription = await this.getSubscription(userId);
     const tier = subscription?.tier || this.TIERS.FREE;
 
@@ -201,34 +204,16 @@ async checkFeatureAccess(userId, feature) {
     }
   },
 
-  /**
-   * Get available upgrade paths for current tier
-   * @param {string} currentTier - User's current subscription tier
-   * @returns {string[]} Array of tiers user can upgrade to
-   */
   getAvailableUpgrades(currentTier) {
     return this.UPGRADE_PATHS[currentTier] || [];
   },
 
-  /**
-   * Check if upgrade is valid (user can only upgrade to higher tier)
-   * @param {string} fromTier - Current tier
-   * @param {string} toTier - Target tier
-   * @returns {boolean}
-   */
   canUpgrade(fromTier, toTier) {
     const availableUpgrades = this.getAvailableUpgrades(fromTier);
     return availableUpgrades.includes(toTier);
   },
 
-  /**
-   * Calculate upgrade credit based on remaining subscription time
-   * @param {object} subscription - Current subscription object
-   * @param {string} targetTier - Target tier to upgrade to
-   * @returns {object} Credit breakdown
-   */
   async calculateUpgradeCredit(subscription, targetTier) {
-    // If no existing subscription, no credit
     if (!subscription) {
       return {
         available: false,
@@ -237,12 +222,10 @@ async checkFeatureAccess(userId, feature) {
       };
     }
 
-    // Get pricing for current tier
     const currentTier = subscription.tier;
     const originalPrice = subscription.original_price || 0;
     const paymentType = subscription.payment_type;
 
-    // For one-time purchases, no credit (already lifetime)
     if (paymentType === this.PAYMENT_TYPES.ONE_TIME) {
       return {
         available: false,
@@ -251,13 +234,12 @@ async checkFeatureAccess(userId, feature) {
       };
     }
 
-    // Calculate remaining time value for subscriptions
     const now = new Date();
     const expiresAt = new Date(subscription.expires_at);
-    const totalDays = (expiresAt - new Date(subscription.created_at)) / (1000 * 60 * 60 * 24);
+    const createdAt = new Date(subscription.created_at);
+    const totalDays = (expiresAt - createdAt) / (1000 * 60 * 60 * 24);
     const remainingDays = (expiresAt - now) / (1000 * 60 * 60 * 24);
 
-    // If already expired or no remaining days, no credit
     if (remainingDays <= 0 || totalDays <= 0) {
       return {
         available: false,
@@ -266,23 +248,17 @@ async checkFeatureAccess(userId, feature) {
       };
     }
 
-    // Calculate credit as remaining proportion of original price
     const creditAmount = (remainingDays / totalDays) * originalPrice;
 
     return {
       available: true,
-      creditAmount: Math.round(creditAmount * 100) / 100, // Round to 2 decimal places
+      creditAmount: Math.round(creditAmount * 100) / 100,
       remainingDays: Math.floor(remainingDays),
       originalPrice,
       description: `Credit for ${Math.floor(remainingDays)} days remaining`,
     };
   },
 
-/**
-   * Get the maximum number of history days allowed for a user
-   * @param {string} userId - User ID
-   * @returns {number} Maximum history days allowed
-   */
   async getMaxHistoryDays(userId) {
     const subscription = await this.getSubscription(userId);
     const tier = subscription?.tier || this.TIERS.FREE;
@@ -294,17 +270,10 @@ async checkFeatureAccess(userId, feature) {
     return this.FEATURES[tier].maxHistoryDays;
   },
 
-  /**
-   * Get upgrade pricing including credit calculation (ONE-TIME only)
-   * @param {string} userId - User ID
-   * @param {string} targetTier - Target tier to upgrade to
-   * @returns {object} Upgrade pricing details
-   */
   async getUpgradePricing(userId, targetTier) {
     const currentSubscription = await this.getSubscription(userId);
     const currentTier = currentSubscription?.tier || this.TIERS.FREE;
 
-    // Check if upgrade is valid
     if (!this.canUpgrade(currentTier, targetTier)) {
       return {
         valid: false,
@@ -314,13 +283,10 @@ async checkFeatureAccess(userId, feature) {
       };
     }
 
-    // Calculate credit if applicable (only for existing one-time purchases)
     const credit = await this.calculateUpgradeCredit(currentSubscription, targetTier);
 
-    // Get target tier one-time pricing
     const price = this.PRICING[targetTier]?.one_time || 0;
 
-    // Calculate final price with credit applied
     const finalPrice = Math.max(0, price - (credit.available ? credit.creditAmount : 0));
 
     return {
@@ -335,3 +301,4 @@ async checkFeatureAccess(userId, feature) {
 };
 
 module.exports = Subscription;
+
