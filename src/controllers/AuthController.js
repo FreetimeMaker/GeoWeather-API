@@ -22,16 +22,18 @@ const AuthController = {
       }
 
       try {
-        // Passport setzt req.user nach erfolgreichem Login
         const user = req.user;
 
-        // JWT erzeugen
         const token = generateToken(user.id, user.username);
         const refreshToken = generateRefreshToken(user.id);
 
-        // 🔥 Redirect in die App (Deep Link)
-        // Deine App fängt geoweather://auth/callback ab
-        return res.redirect(`geoweather://auth/callback?token=${token}`);
+        // Avatar aus DB (kommt aus Passport Strategy)
+        const avatar = encodeURIComponent(user.avatar_url || "");
+
+        // Redirect in die App
+        return res.redirect(
+          `geoweather://auth/callback?token=${token}&avatar=${avatar}`
+        );
 
       } catch (error) {
         return res.status(500).json({ message: error.message });

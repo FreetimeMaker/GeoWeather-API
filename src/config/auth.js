@@ -1,18 +1,28 @@
 const jwt = require('jsonwebtoken');
 
-const generateToken = (userId, username) => {
+const generateToken = (user) => {
   return jwt.sign(
-    { userId, username },
+    {
+      userId: user.id,
+      username: user.username,
+      avatar: user.avatar_url
+    },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRY || '7d' }
+    { 
+      expiresIn: process.env.JWT_EXPIRY || '7d'
+    }
   );
 };
 
-const generateRefreshToken = (userId) => {
+const generateRefreshToken = (user) => {
   return jwt.sign(
-    { userId },
+    {
+      userId: user.id
+    },
     process.env.JWT_SECRET + '_refresh',
-    { expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '30d' }
+    { 
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY || '30d'
+    }
   );
 };
 

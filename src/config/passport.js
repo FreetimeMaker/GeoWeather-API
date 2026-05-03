@@ -30,42 +30,59 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        // Try to find existing user by github_id or email
         const email = profile.emails?.[0]?.value || null;
+        const avatarUrl = profile.photos?.[0]?.value || null;
+
         let user = null;
 
+        // Try find by email
         if (email) {
-          user = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
-          user = user.rows[0];
+          const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+          user = result.rows[0];
         }
 
+        // Try find by GitHub ID
         if (!user && profile.id) {
-          user = await pool.query('SELECT * FROM users WHERE github_id = $1', [profile.id]);
-          user = user.rows[0];
+          const result = await pool.query('SELECT * FROM users WHERE github_id = $1', [profile.id]);
+          user = result.rows[0];
         }
 
+        // Existing user
         if (user) {
-          // Update github_id if not set
+          // Update GitHub ID if missing
           if (!user.github_id) {
-            await pool.query('UPDATE users SET github_id = $1 WHERE id = $2', [profile.id, user.id]);
+            await pool.query(
+              'UPDATE users SET github_id = $1 WHERE id = $2',
+              [profile.id, user.id]
+            );
           }
+
+          // Update avatar if missing
+          if (!user.avatar_url && avatarUrl) {
+            await pool.query(
+              'UPDATE users SET avatar_url = $1 WHERE id = $2',
+              [avatarUrl, user.id]
+            );
+            user.avatar_url = avatarUrl;
+          }
+
           return done(null, user);
         }
 
-// Create new user
+        // Create new user
         const userId = generateUUID();
         const username = profile.username || `user_${profile.id}`;
         const name = profile.displayName || profile.username || username;
-        const githubId = profile.id;
 
         const result = await pool.query(
-          `INSERT INTO users (id, username, github_id, name, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, NOW(), NOW())
+          `INSERT INTO users (id, username, github_id, name, avatar_url, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
            RETURNING *`,
-          [userId, username, githubId, name]
+          [userId, username, profile.id, name, avatarUrl]
         );
 
         return done(null, result.rows[0]);
+
       } catch (error) {
         console.error('GitHub OAuth error:', error);
         return done(error, null);
