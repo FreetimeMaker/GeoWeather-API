@@ -38,13 +38,13 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return Math.round(distance * 10) / 10;
 };
 
-const getNearbyOrte = (orte, userLat, userLon, radiusKm = 50) => {
-  return orte
-    .map((ort) => ({
+const getNearbyLocations = (locations, userLat, userLon, radiusKm = 50) => {
+  return locations
+    .map((location) => ({
       ...ort,
-      distance: calculateDistance(userLat, userLon, ort.latitude, ort.longitude),
+      distance: calculateDistance(userLat, userLon, location.latitude, location.longitude),
     }))
-    .filter((ort) => ort.distance <= radiusKm)
+    .filter((location) => location.distance <= radiusKm)
     .sort((a, b) => a.distance - b.distance);
 };
 
@@ -53,5 +53,5 @@ module.exports = {
   paginate,
   formatResponse,
   calculateDistance,
-  getNearbyOrte,
+  getNearbyLocations,
 };

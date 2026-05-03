@@ -29,7 +29,7 @@ const Subscription = {
 
   FEATURES: {
     free: {
-      maxOrte: 5,
+      maxLocations: 5,
       maxHistoryDays: 3,
       dataSourcesCount: 1,
       pushNotifications: false,
@@ -37,7 +37,7 @@ const Subscription = {
       dataExport: true,
     },
     freemium: {
-      maxOrte: 10,
+      maxLocations: 10,
       maxHistoryDays: 5,
       dataSourcesCount: 2,
       pushNotifications: true,
@@ -45,7 +45,7 @@ const Subscription = {
       dataExport: true,
     },
     premium: {
-      maxOrte: 15,
+      maxLocations: 15,
       maxHistoryDays: 7,
       dataSourcesCount: 4,
       pushNotifications: true,

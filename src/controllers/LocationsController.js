@@ -1,8 +1,8 @@
-const Orte = require('../models/Orte');
+const Locations = require('../models/Locations');
 const Subscription = require('../models/Subscription');
 const { generateUUID } = require('../utils/helpers');
 
-const OrteController = {
+const LocationsController = {
   async create(req, res) {
     try {
       const { name, latitude, longitude } = req.body;
@@ -22,20 +22,20 @@ const OrteController = {
 
       // Check subscription limits (free for anon)
       const tier = req.isAnonymous ? Subscription.TIERS.FREE : (await Subscription.getSubscription(userId))?.tier || Subscription.TIERS.FREE;
-      const maxOrte = Subscription.FEATURES[tier].maxOrte;
+      const maxLocations = Subscription.FEATURES[tier].maxLocations;
 
-      const userOrte = await Orte.findByUserId(userId);
-      if (userOrte.length >= maxOrte) {
+      const userLocations = await Locations.findByUserId(userId);
+      if (userLocations.length >= maxLocations) {
         return res.status(403).json({ 
-          message: `Maximum number of Orte (${maxOrte}) erreicht` 
+          message: `Maximum number of Locations (${maxLocations}) reached` 
         });
       }
 
-      const ort = await Orte.create(userId, name, latitude, longitude);
+      const location = await Locations.create(userId, name, latitude, longitude);
 
       res.status(201).json({
-        message: 'Ort erfolgreich erstellt',
-        ort,
+        message: 'Location created successfully',
+        location,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -45,12 +45,12 @@ const OrteController = {
   async getAll(req, res) {
     try {
       const userId = req.user.userId;
-      const orte = await Orte.findByUserId(userId);
+      const locations = await Locations.findByUserId(userId);
 
       res.status(200).json({
-        message: 'Orte abgerufen',
-        count: orte.length,
-        orte,
+        message: 'Locations retrieved',
+        count: locations.length,
+        locations,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -62,12 +62,12 @@ const OrteController = {
       const { id } = req.params;
       const userId = req.user.userId;
 
-      const ort = await Orte.findById(id);
-      if (!ort || ort.user_id !== userId) {
-        return res.status(404).json({ message: 'Ort not found' });
+      const location = await Locations.findById(id);
+      if (!location || location.user_id !== userId) {
+        return res.status(404).json({ message: 'Location not found' });
       }
 
-      res.status(200).json(ort);
+      res.status(200).json(location);
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -79,20 +79,20 @@ const OrteController = {
       const userId = req.user.userId;
       const { name, latitude, longitude } = req.body;
 
-      const ort = await Orte.findById(id);
-      if (!ort || ort.user_id !== userId) {
-        return res.status(404).json({ message: 'Ort not found' });
+      const location = await Locations.findById(id);
+      if (!location || location.user_id !== userId) {
+        return res.status(404).json({ message: 'Location not found' });
       }
 
-      const updatedOrt = await Orte.update(id, userId, {
+      const updatedLocation = await Locations.update(id, userId, {
         name,
         latitude,
         longitude,
       });
 
       res.status(200).json({
-        message: 'Ort aktualisiert',
-        ort: updatedOrt,
+        message: 'Location updated',
+        location: updatedLocation,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -104,14 +104,14 @@ const OrteController = {
       const { id } = req.params;
       const userId = req.user.userId;
 
-      const ort = await Orte.findById(id);
-      if (!ort || ort.user_id !== userId) {
-        return res.status(404).json({ message: 'Ort not found' });
+      const location = await Locations.findById(id);
+      if (!location || location.user_id !== userId) {
+        return res.status(404).json({ message: 'Location not found' });
       }
 
-      await Orte.delete(id, userId);
+      await Locations.delete(id, userId);
 
-      res.status(200).json({ message: 'Ort gelöscht' });
+      res.status(200).json({ message: 'Location deleted' });
     } catch (error) {
       res.status(500).json({ message: error.message });
     }
@@ -120,19 +120,19 @@ const OrteController = {
   async sync(req, res) {
     try {
       const userId = req.user.userId;
-      const { orte } = req.body;
+      const { locations } = req.body;
 
-      if (!Array.isArray(orte)) {
+      if (!Array.isArray(locations)) {
         return res.status(400).json({ 
-          message: 'Orte must be an array' 
+          message: 'Locations must be an array' 
         });
       }
 
-      const syncedOrte = await Orte.sync(userId, orte);
+      const syncedLocations = await Locations.sync(userId, locations);
 
       res.status(200).json({
-        message: 'Orte synchronisiert',
-        orte: syncedOrte,
+        message: 'Locations synchronized',
+        locations: syncedLocations,
       });
     } catch (error) {
       res.status(500).json({ message: error.message });
@@ -140,5 +140,4 @@ const OrteController = {
   },
 };
 
-module.exports = OrteController;
-
+module.exports = LocationsController;

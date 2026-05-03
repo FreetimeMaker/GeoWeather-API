@@ -15,8 +15,8 @@ describe('FEATURES', () => {
     });
 
     it('should have different orte limits', () => {
-      expect(Subscription.FEATURES.free.maxOrte).toBe(4);
-      expect(Subscription.FEATURES.freemium.maxOrte).toBe(8);
+      expect(Subscription.FEATURES.free.maxLocations).toBe(4);
+      expect(Subscription.FEATURES.freemium.maxLocations).toBe(8);
     });
   });
 

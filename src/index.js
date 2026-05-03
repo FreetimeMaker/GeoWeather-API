@@ -9,7 +9,7 @@ const database = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/auth');
-const orteRoutes = require('./routes/orte');
+const locationsRoutes = require('./routes/locations');
 const weatherHistoryRoutes = require('./routes/weatherHistory');
 const subscriptionRoutes = require('./routes/subscriptions');
 const freemiumRoutes = require('./routes/freemium');
@@ -75,7 +75,7 @@ app.get('/', (req, res) => {
       health: '/api/health',
       auth: '/api/auth',
       github: '/api/auth/github',
-      orte: '/api/orte',
+      locations: '/api/locations',
       weatherHistory: '/api/weather-history',
       subscriptions: '/api/subscriptions',
       'subscriptions/pricing': '/api/subscriptions/pricing',
@@ -88,7 +88,7 @@ app.get('/', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/orte', orteRoutes);
+app.use('/api/locations', locationsRoutes);
 app.use('/api/weather-history', weatherHistoryRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
 app.use('/api/freemium', freemiumRoutes);

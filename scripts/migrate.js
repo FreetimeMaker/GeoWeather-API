@@ -22,9 +22,9 @@ const migrations = [
     )
   `,
 
-  // Orte table
+  // Locations table
   `
-    CREATE TABLE IF NOT EXISTS orte (
+    CREATE TABLE IF NOT EXISTS locations (
       id UUID PRIMARY KEY,
       user_id UUID REFERENCES users(id) ON DELETE SET NULL,
       name VARCHAR(255) NOT NULL,
@@ -81,7 +81,7 @@ const migrations = [
   `,
 
   // Indexes
-  `CREATE INDEX IF NOT EXISTS idx_orte_user_id ON orte(user_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_locations_user_id ON locations(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_weather_history_user_id ON weather_history(user_id)`,
   `CREATE INDEX IF NOT EXISTS idx_weather_history_recorded_at ON weather_history(recorded_at)`,
   `CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id)`,
