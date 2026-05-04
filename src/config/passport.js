@@ -98,4 +98,6 @@ passport.use(
   )
 );
 
+console.log("CLIENT_ID:", process.env.GITHUB_CLIENT_ID);
+
 module.exports = passport;
