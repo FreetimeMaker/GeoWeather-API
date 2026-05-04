@@ -27,8 +27,8 @@ passport.deserializeUser(async (id, done) => {
           {
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: `https://${process.env.VERCEL_URL || 'geo-weather-api.vercel.app'}/api/auth/github/callback`,
-      scope: ['user:email'],
+      callbackURL: `https://geo-weather-api.vercel.app/api/auth/github/callback`,
+      scope: ['user:email', 'read:user'],
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
