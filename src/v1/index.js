@@ -60,10 +60,13 @@ app.get('/api/v1/health', async (req, res) => {
   // 3) OXAPAY API CHECK
   // -----------------------------
   try {
-    const oxapay = await axios.post('https://api.oxapay.com/merchant/check-payment', {
-      merchant: process.env.OXAPAY_API_KEY,
-      order_id: 'health-check'
-    });
+    try {
+      await axios.head('https://api.oxapay.com');
+      result.checks.oxapay = 'reachable';
+    } catch (err) {
+      result.checks.oxapay = `error: ${err.message}`;
+      result.status = 'degraded';
+    }
 
     result.checks.oxapay = oxapay.data.status ? 'reachable' : 'reachable-but-error';
   } catch (err) {
