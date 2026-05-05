@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const errorHandler = require('./middleware/errorHandler');
 const database = require('./config/database');
+const axios = require('axios');
 
 // Import routes
 const authRoutes = require('./routes/auth');
