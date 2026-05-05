@@ -8,8 +8,6 @@ router.post('/register', AuthController.register);
 router.post('/login', AuthController.login);
 
 router.get('/github', githubLogin);
-router.get('/github/callback', AuthController.githubCallback);
-
-router.get('/github/mobile-callback', AuthController.githubMobileCallback);
+router.get('/github/callback', githubCallback);
 
 module.exports = router;
