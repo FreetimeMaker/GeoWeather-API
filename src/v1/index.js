@@ -60,7 +60,7 @@ app.get('/api/v1/health', async (req, res) => {
   // 3) OXAPAY API CHECK
   // -----------------------------
   try {
-    await dns.lookup('https://api.oxapay.com/v1/common/monitor');
+    await dns.lookup('api.oxapay.com/v1/common/monitor');
     result.checks.oxapay = 'reachable';
   } catch (err) {
     result.checks.oxapay = `error: ${err.message}`;
