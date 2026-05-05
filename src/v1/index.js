@@ -4,7 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const errorHandler = require('./middleware/errorHandler');
 const database = require('./config/database');
-const dns = require('dns').promises;
+const axios = require('axios');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -60,7 +60,7 @@ app.get('/api/v1/health', async (req, res) => {
   // 3) OXAPAY API CHECK
   // -----------------------------
   try {
-    await dns.lookup('api.oxapay.com/v1/common/monitor');
+    await axios.head('https://api.oxapay.com/v1/common/monitor'); // <--- HIER MUSS axios stehen
     result.checks.oxapay = 'reachable';
   } catch (err) {
     result.checks.oxapay = `error: ${err.message}`;
