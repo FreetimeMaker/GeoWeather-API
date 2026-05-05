@@ -104,12 +104,12 @@ app.get('/', (req, res) => {
 });
 
 // API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/locations', locationsRoutes);
-app.use('/api/weather-history', weatherHistoryRoutes);
-app.use('/api/subscriptions', subscriptionRoutes);
-app.use('/api/freemium', freemiumRoutes);
-app.use('/api/premium', premiumRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/locations', locationsRoutes);
+app.use('/api/v1/weather-history', weatherHistoryRoutes);
+app.use('/api/v1/subscriptions', subscriptionRoutes);
+app.use('/api/v1/freemium', freemiumRoutes);
+app.use('/api/v1/premium', premiumRoutes);
 
 // 404 Handler
 app.use((req, res) => {
