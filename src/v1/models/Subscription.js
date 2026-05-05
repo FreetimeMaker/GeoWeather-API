@@ -12,21 +12,40 @@ const Subscription = {
     ONE_TIME: 'one_time',
   },
 
+  // ---------------------------------------------------------
+  // BASE PRICES (fallback)
+  // ---------------------------------------------------------
   PRICING: {
-    freemium: {
-      one_time: 5.00,
-    },
-    premium: {
-      one_time: 10.00,
-    }
+    freemium: { one_time: 5.00 },
+    premium: { one_time: 10.00 }
   },
 
+  // ---------------------------------------------------------
+  // DIFFERENT PRICES DEPENDING ON START TIER
+  // ---------------------------------------------------------
+  UPGRADE_PRICING: {
+    free: {
+      freemium: 5.00,
+      premium: 12.50
+    },
+    freemium: {
+      premium: 10.00
+    },
+    premium: {}
+  },
+
+  // ---------------------------------------------------------
+  // Allowed upgrade paths
+  // ---------------------------------------------------------
   UPGRADE_PATHS: {
     free: ['freemium', 'premium'],
     freemium: ['premium'],
     premium: [],
   },
 
+  // ---------------------------------------------------------
+  // Features per tier
+  // ---------------------------------------------------------
   FEATURES: {
     free: {
       maxLocations: 5,
@@ -54,6 +73,9 @@ const Subscription = {
     },
   },
 
+  // ---------------------------------------------------------
+  // Weather providers per tier
+  // ---------------------------------------------------------
   PROVIDERS_BY_TIER: {
     free: ['openmeteo'],
     freemium: ['openmeteo', 'openweather'],
@@ -77,7 +99,7 @@ const Subscription = {
   async validateRequestedSources(userId, requestedSources) {
     const tier = await this.getUserTier(userId);
     const available = await this.getAvailableWeatherProviders(userId);
-    const validSources = requestedSources.filter(source => 
+    const validSources = requestedSources.filter(source =>
       available.includes(source.toLowerCase())
     );
 
@@ -90,21 +112,22 @@ const Subscription = {
     return validSources;
   },
 
+  // ---------------------------------------------------------
+  // Create subscription
+  // ---------------------------------------------------------
   async createSubscription(userId, tier, paymentMethod, options = {}) {
     const { paymentType = this.PAYMENT_TYPES.ONE_TIME } = options;
-    
+
     const subscriptionId = generateUUID();
     const createdAt = new Date().toISOString();
-    
-    // One-time lifetime: set to 100 years
+
+    // Lifetime = 100 years
     let expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 100);
     expiresAt = expiresAt.toISOString();
 
-    let originalPrice = 0;
-    if (this.PRICING[tier]) {
-      originalPrice = this.PRICING[tier].one_time;
-    }
+    // Base price
+    let originalPrice = this.PRICING[tier]?.one_time || 0;
 
     const { data, error } = await supabase
       .from('subscriptions')
@@ -127,9 +150,9 @@ const Subscription = {
     // Update user tier
     const { error: userError } = await supabase
       .from('users')
-      .update({ 
-        subscription_tier: tier, 
-        updated_at: new Date().toISOString() 
+      .update({
+        subscription_tier: tier,
+        updated_at: new Date().toISOString()
       })
       .eq('id', userId);
 
@@ -138,6 +161,9 @@ const Subscription = {
     return data;
   },
 
+  // ---------------------------------------------------------
+  // Get latest subscription
+  // ---------------------------------------------------------
   async getSubscription(userId) {
     const { data, error } = await supabase
       .from('subscriptions')
@@ -151,26 +177,26 @@ const Subscription = {
     return data;
   },
 
+  // ---------------------------------------------------------
+  // Update subscription
+  // ---------------------------------------------------------
   async updateSubscription(subscriptionId, tier, options = {}) {
     const { paymentType = this.PAYMENT_TYPES.ONE_TIME } = options;
-    
+
     let expiresAt = new Date();
     expiresAt.setFullYear(expiresAt.getFullYear() + 100);
     expiresAt = expiresAt.toISOString();
 
-    let originalPrice = 0;
-    if (this.PRICING[tier]) {
-      originalPrice = this.PRICING[tier].one_time;
-    }
+    let originalPrice = this.PRICING[tier]?.one_time || 0;
 
     const { data, error } = await supabase
       .from('subscriptions')
-      .update({ 
-        tier, 
+      .update({
+        tier,
         payment_type: paymentType,
         original_price: originalPrice,
         expires_at: expiresAt,
-        is_active: true 
+        is_active: true
       })
       .eq('id', subscriptionId)
       .select()
@@ -180,39 +206,39 @@ const Subscription = {
     return data;
   },
 
+  // ---------------------------------------------------------
+  // Feature access
+  // ---------------------------------------------------------
   async checkFeatureAccess(userId, feature) {
     const subscription = await this.getSubscription(userId);
     const tier = subscription?.tier || this.TIERS.FREE;
 
-    if (!this.FEATURES[tier]) {
-      return false;
-    }
-
     const features = this.FEATURES[tier];
+    if (!features) return false;
 
     switch (feature) {
-      case 'push_notifications':
-        return features.pushNotifications;
-      case 'map_layers':
-        return features.mapLayers;
-      case 'data_export':
-        return features.dataExport;
-      case 'multiple_sources':
-        return features.dataSourcesCount > 1;
-      default:
-        return false;
+      case 'push_notifications': return features.pushNotifications;
+      case 'map_layers': return features.mapLayers;
+      case 'data_export': return features.dataExport;
+      case 'multiple_sources': return features.dataSourcesCount > 1;
+      default: return false;
     }
   },
 
+  // ---------------------------------------------------------
+  // Upgrade logic
+  // ---------------------------------------------------------
   getAvailableUpgrades(currentTier) {
     return this.UPGRADE_PATHS[currentTier] || [];
   },
 
   canUpgrade(fromTier, toTier) {
-    const availableUpgrades = this.getAvailableUpgrades(fromTier);
-    return availableUpgrades.includes(toTier);
+    return this.getAvailableUpgrades(fromTier).includes(toTier);
   },
 
+  // ---------------------------------------------------------
+  // Credit calculation (for time-based subs)
+  // ---------------------------------------------------------
   async calculateUpgradeCredit(subscription, targetTier) {
     if (!subscription) {
       return {
@@ -222,11 +248,7 @@ const Subscription = {
       };
     }
 
-    const currentTier = subscription.tier;
-    const originalPrice = subscription.original_price || 0;
-    const paymentType = subscription.payment_type;
-
-    if (paymentType === this.PAYMENT_TYPES.ONE_TIME) {
+    if (subscription.payment_type === this.PAYMENT_TYPES.ONE_TIME) {
       return {
         available: false,
         creditAmount: 0,
@@ -237,6 +259,7 @@ const Subscription = {
     const now = new Date();
     const expiresAt = new Date(subscription.expires_at);
     const createdAt = new Date(subscription.created_at);
+
     const totalDays = (expiresAt - createdAt) / (1000 * 60 * 60 * 24);
     const remainingDays = (expiresAt - now) / (1000 * 60 * 60 * 24);
 
@@ -248,28 +271,30 @@ const Subscription = {
       };
     }
 
-    const creditAmount = (remainingDays / totalDays) * originalPrice;
+    const creditAmount = (remainingDays / totalDays) * subscription.original_price;
 
     return {
       available: true,
       creditAmount: Math.round(creditAmount * 100) / 100,
       remainingDays: Math.floor(remainingDays),
-      originalPrice,
+      originalPrice: subscription.original_price,
       description: `Credit for ${Math.floor(remainingDays)} days remaining`,
     };
   },
 
+  // ---------------------------------------------------------
+  // Max history days
+  // ---------------------------------------------------------
   async getMaxHistoryDays(userId) {
     const subscription = await this.getSubscription(userId);
     const tier = subscription?.tier || this.TIERS.FREE;
 
-    if (!this.FEATURES[tier]) {
-      return this.FEATURES.free.maxHistoryDays;
-    }
-
-    return this.FEATURES[tier].maxHistoryDays;
+    return this.FEATURES[tier]?.maxHistoryDays || this.FEATURES.free.maxHistoryDays;
   },
 
+  // ---------------------------------------------------------
+  // FINAL: Upgrade pricing with different prices per start tier
+  // ---------------------------------------------------------
   async getUpgradePricing(userId, targetTier) {
     const currentSubscription = await this.getSubscription(userId);
     const currentTier = currentSubscription?.tier || this.TIERS.FREE;
@@ -283,22 +308,30 @@ const Subscription = {
       };
     }
 
+    // 1. Price depending on START tier
+    const basePrice =
+      this.UPGRADE_PRICING[currentTier]?.[targetTier] ??
+      this.PRICING[targetTier]?.one_time ??
+      0;
+
+    // 2. Credit (if subscription is time-based)
     const credit = await this.calculateUpgradeCredit(currentSubscription, targetTier);
 
-    const price = this.PRICING[targetTier]?.one_time || 0;
-
-    const finalPrice = Math.max(0, price - (credit.available ? credit.creditAmount : 0));
+    // 3. Final price
+    const finalPrice = Math.max(
+      0,
+      basePrice - (credit.available ? credit.creditAmount : 0)
+    );
 
     return {
       valid: true,
       currentTier,
       targetTier,
+      basePrice,
       credit,
-      price,
       finalPrice: Math.round(finalPrice * 100) / 100,
     };
   },
 };
 
 module.exports = Subscription;
-
