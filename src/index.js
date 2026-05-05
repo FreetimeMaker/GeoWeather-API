@@ -2,8 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const session = require('express-session');
-const passport = require('./config/passport');
 const errorHandler = require('./middleware/errorHandler');
 const database = require('./config/database');
 
@@ -26,9 +24,9 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
-// Initialize Passport
-app.use(passport.initialize());
+// ❌ REMOVE PASSPORT COMPLETELY
+// const passport = require('./config/passport');
+// app.use(passport.initialize());
 
 // Health Check
 app.get('/api/health', async (req, res) => {
