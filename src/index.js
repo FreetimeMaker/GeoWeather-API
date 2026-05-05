@@ -78,6 +78,10 @@ app.get('/', (req, res) => {
   });
 });
 
+app.get("/", (req, res) => {
+  res.json({ status: "GeoWeather API running" });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/locations', locationsRoutes);
