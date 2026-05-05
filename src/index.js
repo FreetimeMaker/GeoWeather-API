@@ -16,7 +16,7 @@ app.get('/', (req, res) => {
         message: 'Welcome to the GeoWeather API!',
         api: {
             version: '1.0.0',
-            endpoints: {
+            'v1 endpoints': {
                 health: '/api/v1/health',
                 auth: '/api/v1/auth',
                 github: '/api/v1/auth/github',

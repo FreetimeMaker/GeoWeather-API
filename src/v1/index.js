@@ -29,32 +29,62 @@ app.use(express.urlencoded({ extended: true }));
 // app.use(passport.initialize());
 
 // Health Check
-app.get('/api/health', async (req, res) => {
+app.get('/api/v1/health', async (req, res) => {
+  const result = {
+    status: 'ok',
+    service: 'GeoWeather API',
+    timestamp: new Date().toISOString(),
+    version: process.env.VERCEL_GIT_COMMIT_SHA || 'local-dev',
+    checks: {}
+  };
+
+  // -----------------------------
+  // 1) LIVENESS
+  // -----------------------------
+  result.checks.live = true;
+
+  // -----------------------------
+  // 2) READINESS (DB erreichbar?)
+  // -----------------------------
   try {
     const dbStatus = await database.healthCheck();
-    let dbStatusText = 'not_configured';
-    if (dbStatus === null) {
-      dbStatusText = 'not_configured';
-    } else if (dbStatus) {
-      dbStatusText = 'connected';
-    } else {
-      dbStatusText = 'disconnected';
-    }
-    res.status(200).json({
-      status: 'OK',
-      database: dbStatusText,
-      timestamp: new Date(),
-    });
-  } catch (error) {
-    console.error('Health check error:', error.message);
-    res.status(200).json({
-      status: 'OK',
-      database: 'error',
-      error: error.message,
-      timestamp: new Date(),
-    });
+    result.checks.database = dbStatus ? 'connected' : 'disconnected';
+    if (!dbStatus) result.status = 'degraded';
+  } catch (err) {
+    result.checks.database = `error: ${err.message}`;
+    result.status = 'degraded';
   }
+
+  // -----------------------------
+  // 3) OXAPAY API CHECK
+  // -----------------------------
+  try {
+    const oxapay = await axios.post('https://api.oxapay.com/merchant/check-payment', {
+      merchant: process.env.OXAPAY_API_KEY,
+      order_id: 'health-check'
+    });
+
+    result.checks.oxapay = oxapay.data.status ? 'reachable' : 'reachable-but-error';
+  } catch (err) {
+    result.checks.oxapay = `error: ${err.message}`;
+    result.status = 'degraded';
+  }
+
+  // -----------------------------
+  // 4) ENVIRONMENT INFO
+  // -----------------------------
+  result.checks.environment = {
+    node: process.version,
+    region: process.env.VERCEL_REGION || 'local',
+    runtime: 'vercel-node'
+  };
+
+  // -----------------------------
+  // RESPONSE
+  // -----------------------------
+  res.status(result.status === 'ok' ? 200 : 503).json(result);
 });
+
 
 // Root Route
 app.get('/', (req, res) => {
