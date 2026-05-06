@@ -179,23 +179,6 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // -----------------------------
-    // WEATHER HISTORY (auth required)
-    // -----------------------------
-    if (path.startsWith("/v1/weather-history")) {
-      const auth = await authenticate(req);
-      if (!auth.ok) return auth.response;
-
-      const user = auth.user;
-
-      if (method === "GET" && path === "/v1/weather-history") {
-        return WeatherHistoryController.getHistory(req, db, user);
-      }
-      if (method === "POST" && path === "/v1/weather-history") {
-        return WeatherHistoryController.addEntry(req, db, user);
-      }
-    }
-
-    // -----------------------------
     // SUBSCRIPTIONS (auth required)
     // -----------------------------
     if (path.startsWith("/v1/subscriptions")) {
