@@ -35,7 +35,7 @@ async function generateRefreshToken(user: any) {
 // ---------------------------------------------------------
 // GitHub OAuth – Start
 // ---------------------------------------------------------
-export function githubAuth(): Response {
+async function githubAuth(): Promise<Response> {
   const redirect = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&scope=user:email`;
   return Response.redirect(redirect, 302);
 }
@@ -43,7 +43,7 @@ export function githubAuth(): Response {
 // ---------------------------------------------------------
 // GitHub OAuth – Callback (Deep Link Redirect)
 // ---------------------------------------------------------
-export async function githubCallback(req: Request, db: any): Promise<Response> {
+async function githubCallback(req: Request, db: any): Promise<Response> {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
@@ -77,7 +77,7 @@ export async function githubCallback(req: Request, db: any): Promise<Response> {
 // ---------------------------------------------------------
 // GitHub OAuth – Mobile JSON Callback
 // ---------------------------------------------------------
-export async function githubMobileCallback(req: Request, db: any): Promise<Response> {
+async function githubMobileCallback(req: Request, db: any): Promise<Response> {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get("code");
@@ -112,7 +112,7 @@ export async function githubMobileCallback(req: Request, db: any): Promise<Respo
 // ---------------------------------------------------------
 // Registrierung
 // ---------------------------------------------------------
-export async function register(req: Request, db: any): Promise<Response> {
+async function register(req: Request, db: any): Promise<Response> {
   try {
     const { username, password, name } = await req.json();
 
@@ -143,7 +143,7 @@ export async function register(req: Request, db: any): Promise<Response> {
 // ---------------------------------------------------------
 // Login
 // ---------------------------------------------------------
-export async function login(req: Request, db: any): Promise<Response> {
+async function login(req: Request, db: any): Promise<Response> {
   try {
     const { username, password } = await req.json();
 
@@ -175,12 +175,12 @@ export async function login(req: Request, db: any): Promise<Response> {
 // ---------------------------------------------------------
 // Logout
 // ---------------------------------------------------------
-export function logout(): Response {
+function logout(): Response {
   return json({ message: "Successfully logged out" });
 }
 
 // ---------------------------------------------------------
-// Helper: Exchange GitHub Code for Access Token
+// GitHub Helpers
 // ---------------------------------------------------------
 async function exchangeCodeForToken(code: string): Promise<string> {
   const res = await fetch("https://github.com/login/oauth/access_token", {
@@ -202,9 +202,6 @@ async function exchangeCodeForToken(code: string): Promise<string> {
   return json.access_token;
 }
 
-// ---------------------------------------------------------
-// Helper: Fetch GitHub User
-// ---------------------------------------------------------
 async function fetchGitHubUser(token: string): Promise<any> {
   const res = await fetch("https://api.github.com/user", {
     headers: {
@@ -217,7 +214,7 @@ async function fetchGitHubUser(token: string): Promise<any> {
 }
 
 // ---------------------------------------------------------
-// User DB Helpers (Supabase)
+// User DB Helpers
 // ---------------------------------------------------------
 async function findUserByUsername(db: any, username: string) {
   const { data } = await db.from("users").select("*").eq("username", username).single();
@@ -246,7 +243,7 @@ async function createUser(db: any, username: string, password: string, name: str
 }
 
 async function verifyPassword(input: string, hash: string) {
-  return input === hash; // TODO: ersetze durch bcrypt für Deno
+  return input === hash; // TODO: bcrypt für Deno
 }
 
 // ---------------------------------------------------------
@@ -256,3 +253,15 @@ function json(data: unknown, status = 200): Response {
     headers: { "Content-Type": "application/json" }
   });
 }
+
+// ---------------------------------------------------------
+// EXPORT: AuthController (Fix für deinen Fehler)
+// ---------------------------------------------------------
+export const AuthController = {
+  register,
+  login,
+  logout,
+  githubAuth,
+  githubCallback,
+  githubMobileCallback
+};
