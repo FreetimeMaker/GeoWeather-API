@@ -1,23 +1,16 @@
-export function handleError(error: unknown, req: Request): Response {
-  const err = error instanceof Error ? error : new Error(String(error));
-
-  console.error("Error Handler:", {
-    message: err.message,
-    stack: err.stack,
+export function handleError(err: any, req: Request): Response {
+  console.error("EDGE ERROR:", {
+    message: err?.message,
+    stack: err?.stack,
     url: req.url,
     method: req.method
   });
 
-  const isProd = Deno.env.get("NODE_ENV") === "production";
-
   return new Response(
     JSON.stringify({
-      message: "Internal server error",
-      ...(isProd ? { error: err.message } : { stack: err.stack })
+      error: "Internal Server Error",
+      detail: err?.message ?? "unknown"
     }),
-    {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    }
+    { status: 500, headers: { "Content-Type": "application/json" } }
   );
 }

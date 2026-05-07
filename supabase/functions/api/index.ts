@@ -113,7 +113,7 @@ function rootRoute(): Response {
 serve(async (req: Request): Promise<Response> => {
   try {
     const url = new URL(req.url);
-    let path = url.pathname.replace(/^\/functions\/api/, "");
+    let path = url.pathname.replace(/^\/functions\/v1\/api(\/index)?/, "") || "/";
     const method = req.method;
     const db = dbClient();
 
