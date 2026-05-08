@@ -1,10 +1,8 @@
-require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
-const helmet = require('helmet');
-const errorHandler = require('./middleware/errorHandler');
-const database = require('./config/database');
+const router = express.Router();
 const axios = require('axios');
+const database = require('./config/database');
+const errorHandler = require('./middleware/errorHandler');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -14,23 +12,8 @@ const subscriptionRoutes = require('./routes/subscriptions');
 const freemiumRoutes = require('./routes/freemium');
 const premiumRoutes = require('./routes/premium');
 
-const app = express();
-
-// Middleware
-app.use(helmet());
-app.use(cors({
-    origin: (process.env.CORS_ORIGIN || '*').split(','),
-    credentials: true,
-}));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// ❌ REMOVE PASSPORT COMPLETELY
-// const passport = require('./config/passport');
-// app.use(passport.initialize());
-
-// Health Check
-app.get('/api/v1/health', async (req, res) => {
+// Health Check (ohne /api/v1 prefix!)
+router.get('/health', async (req, res) => {
     const result = {
         status: 'ok',
         service: 'GeoWeather API',
@@ -38,98 +21,54 @@ app.get('/api/v1/health', async (req, res) => {
         checks: {}
     };
 
-    // -----------------------------
-    // 1) LIVENESS
-    // -----------------------------
-    result.checks.live = true;
-
-    // -----------------------------
-    // 2) READINESS (DB erreichbar?)
-    // -----------------------------
     try {
         const dbStatus = await database.healthCheck();
         result.checks.database = dbStatus ? 'connected' : 'disconnected';
-        if (!dbStatus) result.status = 'degraded';
     } catch (err) {
         result.checks.database = `error: ${err.message}`;
         result.status = 'degraded';
     }
 
-    // -----------------------------
-    // 3) OXAPAY API CHECK
-    // -----------------------------
     try {
-        await axios.head('https://api.oxapay.com/v1/common/monitor'); // <--- HIER MUSS axios stehen
+        await axios.head('https://api.oxapay.com/v1/common/monitor');
         result.checks.oxapay = 'reachable';
     } catch (err) {
         result.checks.oxapay = `error: ${err.message}`;
         result.status = 'degraded';
     }
 
-    // -----------------------------
-    // 4) ENVIRONMENT INFO
-    // -----------------------------
-    result.checks.environment = {
-        node: process.version,
-    };
-
-    // -----------------------------
-    // RESPONSE
-    // -----------------------------
     res.status(result.status === 'ok' ? 200 : 503).json(result);
 });
 
-
-// Root Route
-app.get('/v1', (req, res) => {
-    res.status(200).json({
-        message: 'Welcome to the GeoWeather API!',
+// Root of v1
+router.get('/', (req, res) => {
+    res.json({
+        message: 'Welcome to the GeoWeather API v1!',
         version: '1.0.0',
         endpoints: {
-        health: '/api/v1/health',
-        auth: '/api/v1/auth',
-        github: '/api/v1/auth/github',
-        locations: '/api/v1/locations',
-        weatherHistory: '/api/v1/weather-history',
-        subscriptions: '/api/v1/subscriptions',
-        'subscriptions/pricing': '/api/v1/subscriptions/pricing',
-        'subscriptions/buy': '/api/v1/subscriptions/buy',
-        freemium: '/api/v1/freemium',
-        premium: '/api/v1/premium',
+            health: '/api/v1/health',
+            auth: '/api/v1/auth',
+            github: '/api/v1/auth/github',
+            locations: '/api/v1/locations',
+            weatherHistory: '/api/v1/weather-history',
+            subscriptions: '/api/v1/subscriptions',
+            'subscriptions/pricing': '/api/v1/subscriptions/pricing',
+            'subscriptions/buy': '/api/v1/subscriptions/buy',
+            freemium: '/api/v1/freemium',
+            premium: '/api/v1/premium',
         },
     });
 });
 
-// API Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/locations', locationsRoutes);
-app.use('/api/v1/weather-history', weatherHistoryRoutes);
-app.use('/api/v1/subscriptions', subscriptionRoutes);
-app.use('/api/v1/freemium', freemiumRoutes);
-app.use('/api/v1/premium', premiumRoutes);
+// V1 routes (ohne /api/v1 prefix!)
+router.use('/auth', authRoutes);
+router.use('/locations', locationsRoutes);
+router.use('/weather-history', weatherHistoryRoutes);
+router.use('/subscriptions', subscriptionRoutes);
+router.use('/freemium', freemiumRoutes);
+router.use('/premium', premiumRoutes);
 
-// 404 Handler
-app.use((req, res) => {
-    res.status(404).json({ message: 'Route not found' });
-});
+// Error handler
+router.use(errorHandler);
 
-// Error Handler (must be last)
-app.use(errorHandler);
-
-const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, async () => {
-    console.log('GeoWeather API running on port ' + PORT);
-    console.log('Environment: ' + (process.env.NODE_ENV || 'production'));
-    
-    // Startup health check
-    try {
-        const dbStatus = await database.healthCheck();
-        const statusText = dbStatus === null ? 'not_configured' : (dbStatus ? '✅ connected' : '❌ disconnected');
-        console.log('Database:', statusText);
-    } catch (error) {
-        console.error('Startup DB check failed:', error.message);
-    }
-});
-
-module.exports = app;
+module.exports = router;
