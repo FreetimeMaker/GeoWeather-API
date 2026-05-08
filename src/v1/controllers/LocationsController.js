@@ -1,5 +1,5 @@
 const Locations = require('../models/Locations');
-const Subscription = require('../models/Subscription');
+const Subscription = require('../models/Subscription.js');
 const { generateUUID } = require('../utils/helpers');
 
 const LocationsController = {
