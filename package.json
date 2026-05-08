@@ -1,0 +1,45 @@
+{
+    "name": "geoweather-api",
+    "version": "1.0.0",
+    "description": "GeoWeather API - Cloud-based Weather-App with History-Sync and History-Archive",
+    "main": "src/index.js",
+    "scripts": {
+        "start": "node src/index.js",
+        "dev": "nodemon src/index.js",
+        "test": "jest --coverage",
+        "db:migrate": "node scripts/migrate.js",
+        "db:seed": "node scripts/seed.js",
+        "lint": "eslint src/"
+    },
+    "keywords": [
+        "weather",
+        "api",
+        "sync",
+        "geolocation",
+        "cloud"
+    ],
+    "author": "Freetime Maker",
+    "license": "Apache-2.0",
+    "dependencies": {
+        "@supabase/supabase-js": "^2.45.4",
+        "axios": "^1.6.0",
+        "bcryptjs": "^3.0.0",
+        "cors": "^2.8.5",
+        "dotenv": "^17.0.0",
+        "express": "^5.0.0",
+        "express-session": "^1.18.0",
+        "express-validator": "^7.0.0",
+        "helmet": "^8.0.0",
+        "jsonwebtoken": "^9.0.0",
+        "@octokit/oauth-app": "^8.0.3",
+        "pg": "^8.10.0",
+        "socket.io": "^4.6.1",
+        "supertest": "^7.0.0"
+    },
+    "devDependencies": {
+        "eslint": "^10.0.0",
+        "jest": "^30.0.0",
+        "nodemon": "^3.0.0",
+        "supabase": "^2.98.1"
+    }
+}
