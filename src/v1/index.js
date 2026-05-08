@@ -35,7 +35,6 @@ app.get('/api/v1/health', async (req, res) => {
         status: 'ok',
         service: 'GeoWeather API',
         timestamp: new Date().toISOString(),
-        version: process.env.VERCEL_GIT_COMMIT_SHA || 'local-dev',
         checks: {}
     };
 
@@ -72,8 +71,6 @@ app.get('/api/v1/health', async (req, res) => {
     // -----------------------------
     result.checks.environment = {
         node: process.version,
-        region: process.env.VERCEL_REGION || 'local',
-        runtime: 'vercel-node'
     };
 
     // -----------------------------
