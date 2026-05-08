@@ -81,7 +81,7 @@ app.get('/api/v1/health', async (req, res) => {
 
 
 // Root Route
-app.get('/', (req, res) => {
+app.get('/v1', (req, res) => {
     res.status(200).json({
         message: 'Welcome to the GeoWeather API!',
         version: '1.0.0',
