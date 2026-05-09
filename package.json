@@ -1,6 +1,6 @@
 {
     "name": "geoweather-api",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "GeoWeather API - Cloud-based Weather-App with History-Sync and History-Archive",
     "main": "src/index.js",
     "scripts": {

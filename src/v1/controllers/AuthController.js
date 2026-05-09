@@ -2,6 +2,7 @@ const User = require('../models/User');
 const { generateToken, generateRefreshToken } = require('../config/auth');
 const https = require("https");
 const querystring = require("querystring");
+const { exchangeModrinthCodeForToken, fetchModrinthUser } = require("../config/modrinth");
 
 // ---------------------------------------------------------
 // GitHub OAuth – Start
@@ -24,14 +25,22 @@ async function githubCallback(req, res) {
         const token = await exchangeCodeForToken(code);
         const ghUser = await fetchGitHubUser(token);
 
-        let user = await User.findByUsername(ghUser.login);
+        const email = ghUser.email || null;
+
+        let user = null;
+
+        if (email) user = await User.findByEmail(email);
+        if (!user) user = await User.findByProviderId("github", ghUser.id);
 
         if (!user) {
-        user = await User.createOAuthUser(
-            ghUser.login,
-            ghUser.name || ghUser.login,
-            ghUser.avatar_url
-        );
+            user = await User.createOAuthUser({
+                username: ghUser.login,
+                name: ghUser.name || ghUser.login,
+                email,
+                avatar_url: ghUser.avatar_url,
+                provider: "github",
+                provider_id: ghUser.id
+            });
         }
 
         const jwt = generateToken(user.id, user.username);
@@ -40,7 +49,7 @@ async function githubCallback(req, res) {
         const avatar = encodeURIComponent(user.avatar_url || "");
 
         return res.redirect(
-        `geoweather://auth/callback?token=${jwt}&avatar=${avatar}`
+            `geoweather://auth/callback?token=${jwt}&avatar=${avatar}`
         );
 
     } catch (error) {
@@ -59,31 +68,120 @@ async function githubMobileCallback(req, res) {
         const token = await exchangeCodeForToken(code);
         const ghUser = await fetchGitHubUser(token);
 
-        let user = await User.findByUsername(ghUser.login);
+        const email = ghUser.email || null;
+
+        let user = null;
+
+        if (email) user = await User.findByEmail(email);
+        if (!user) user = await User.findByProviderId("github", ghUser.id);
 
         if (!user) {
-        user = await User.createOAuthUser(
-            ghUser.login,
-            ghUser.name || ghUser.login,
-            ghUser.avatar_url
-        );
+            user = await User.createOAuthUser({
+                username: ghUser.login,
+                name: ghUser.name || ghUser.login,
+                email,
+                avatar_url: ghUser.avatar_url,
+                provider: "github",
+                provider_id: ghUser.id
+            });
         }
 
         const jwt = generateToken(user.id, user.username);
         const refreshToken = generateRefreshToken(user.id);
 
         return res.status(200).json({
-        success: true,
-        message: "GitHub authentication successful",
-        user: {
-            id: user.id,
-            username: user.username,
-            name: user.name,
-            avatar_url: user.avatar_url,
-            subscription_tier: user.subscription_tier
-        },
-        token: jwt,
-        refreshToken
+            success: true,
+            message: "GitHub authentication successful",
+            user,
+            token: jwt,
+            refreshToken
+        });
+
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+}
+
+// ---------------------------------------------------------
+// Modrinth OAuth – Callback (Deep Link Redirect)
+// ---------------------------------------------------------
+async function modrinthCallback(req, res) {
+    try {
+        const { code } = req.query;
+
+        const token = await exchangeModrinthCodeForToken(code);
+        const mrUser = await fetchModrinthUser(token);
+
+        const email = mrUser.email || null;
+
+        let user = null;
+
+        if (email) user = await User.findByEmail(email);
+        if (!user) user = await User.findByProviderId("modrinth", mrUser.id);
+
+        if (!user) {
+            user = await User.createOAuthUser({
+                username: mrUser.username,
+                name: mrUser.name || mrUser.username,
+                email,
+                avatar_url: mrUser.avatar_url,
+                provider: "modrinth",
+                provider_id: mrUser.id
+            });
+        }
+
+        const jwt = generateToken(user.id, user.username);
+        const refreshToken = generateRefreshToken(user.id);
+
+        const avatar = encodeURIComponent(user.avatar_url || "");
+
+        return res.redirect(
+            `geoweather://auth/callback?token=${jwt}&avatar=${avatar}`
+        );
+
+    } catch (error) {
+        console.error("Modrinth OAuth error:", error);
+        return res.status(500).json({ message: "OAuth failed", error: error.message });
+    }
+}
+
+// ---------------------------------------------------------
+// Modrinth OAuth – Mobile JSON Callback
+// ---------------------------------------------------------
+async function modrinthMobileCallback(req, res) {
+    try {
+        const { code } = req.query;
+
+        const token = await exchangeModrinthCodeForToken(code);
+        const mrUser = await fetchModrinthUser(token);
+
+        const email = mrUser.email || null;
+
+        let user = null;
+
+        if (email) user = await User.findByEmail(email);
+        if (!user) user = await User.findByProviderId("modrinth", mrUser.id);
+
+        if (!user) {
+            user = await User.createOAuthUser({
+                username: mrUser.username,
+                name: mrUser.name || mrUser.username,
+                email,
+                avatar_url: mrUser.avatar_url,
+                provider: "modrinth",
+                provider_id: mrUser.id
+            });
+        }
+
+        const jwt = generateToken(user.id, user.username);
+        const refreshToken = generateRefreshToken(user.id);
+
+        return res.status(200).json({
+            success: true,
+            message: "Modrinth authentication successful",
+            user,
+            token: jwt,
+            refreshToken
         });
 
     } catch (error) {
@@ -253,10 +351,29 @@ function fetchGitHubUser(token) {
     });
 }
 
+let user = null;
+
+// 1. E-Mail Match
+if (oauthUser.email) {
+    user = await User.findByEmail(oauthUser.email);
+}
+
+// 2. Provider Match
+if (!user) {
+    user = await User.findByProvider(oauthUser.provider, oauthUser.provider_id);
+}
+
+// 3. Neuer User
+if (!user) {
+    user = await User.createOAuthUser(oauthUser);
+}
+
 module.exports = {
     githubAuth,
     githubCallback,
     githubMobileCallback,
+    modrinthCallback,
+    modrinthMobileCallback,
     register,
     login,
     logout

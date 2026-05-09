@@ -5,9 +5,9 @@ const bcrypt = require('bcryptjs');
 const User = {
 
   // ---------------------------------------------------------
-  // Create normal user (username + password)
+  // Create normal user (username + password + email)
   // ---------------------------------------------------------
-  async create(username, password, name) {
+  async create(username, password, name, email) {
     const userId = generateUUID();
     const hashedPassword = await bcrypt.hash(password, 10);
     const createdAt = new Date().toISOString();
@@ -19,11 +19,12 @@ const User = {
         username,
         password: hashedPassword,
         name,
-        subscription_tier: username === "DEIN_USERNAME" ? "premium" : "freemium",
+        email,
+        subscription_tier: "freemium",
         created_at: createdAt,
         updated_at: createdAt
       })
-      .select('id, username, name, avatar_url, subscription_tier, created_at, updated_at')
+      .select('*')
       .single();
 
     if (error) throw error;
@@ -31,9 +32,9 @@ const User = {
   },
 
   // ---------------------------------------------------------
-  // Create OAuth user (GitHub)
+  // Create OAuth user (GitHub / Modrinth / etc.)
   // ---------------------------------------------------------
-  async createOAuthUser(username, name, avatar_url) {
+  async createOAuthUser({ username, name, email, avatar_url, provider, provider_id }) {
     const userId = generateUUID();
     const createdAt = new Date().toISOString();
 
@@ -43,12 +44,15 @@ const User = {
         id: userId,
         username,
         name,
+        email,
         avatar_url,
-        subscription_tier: username === "DEIN_GITHUB_USERNAME" ? "premium" : "freemium",
+        provider,
+        provider_id,
+        subscription_tier: "freemium",
         created_at: createdAt,
         updated_at: createdAt
       })
-      .select('id, username, name, avatar_url, subscription_tier, created_at, updated_at')
+      .select('*')
       .single();
 
     if (error) throw error;
@@ -56,13 +60,13 @@ const User = {
   },
 
   // ---------------------------------------------------------
-  // Find by ID
+  // Find by email
   // ---------------------------------------------------------
-  async findById(userId) {
+  async findByEmail(email) {
     const { data, error } = await supabase
       .from('users')
-      .select('id, username, name, avatar_url, subscription_tier, created_at, updated_at, password')
-      .eq('id', userId)
+      .select('*')
+      .eq('email', email)
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
@@ -70,12 +74,27 @@ const User = {
   },
 
   // ---------------------------------------------------------
-  // Find by username
+  // Find by provider + provider_id
+  // ---------------------------------------------------------
+  async findByProvider(provider, provider_id) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('provider', provider)
+      .eq('provider_id', provider_id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  },
+
+  // ---------------------------------------------------------
+  // Find by username (legacy)
   // ---------------------------------------------------------
   async findByUsername(username) {
     const { data, error } = await supabase
       .from('users')
-      .select('id, username, name, avatar_url, subscription_tier, created_at, updated_at, password')
+      .select('*')
       .eq('username', username)
       .single();
 
@@ -88,41 +107,7 @@ const User = {
   // ---------------------------------------------------------
   async verifyPassword(password, hashedPassword) {
     return bcrypt.compare(password, hashedPassword);
-  },
-
-  // ---------------------------------------------------------
-  // Update user
-  // ---------------------------------------------------------
-  async update(userId, data) {
-    const { username, name, subscription_tier } = data;
-
-    const { data: updatedData, error } = await supabase
-      .from('users')
-      .update({
-        username,
-        name,
-        subscription_tier,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-      .select('id, username, name, avatar_url, subscription_tier, created_at, updated_at')
-      .single();
-
-    if (error) throw error;
-    return updatedData;
-  },
-
-  // ---------------------------------------------------------
-  // Delete user
-  // ---------------------------------------------------------
-  async delete(userId) {
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', userId);
-
-    return !error;
-  },
+  }
 };
 
 module.exports = User;

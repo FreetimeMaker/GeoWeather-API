@@ -1,0 +1,3 @@
+ALTER TABLE users ADD COLUMN email TEXT;
+ALTER TABLE users ADD COLUMN provider TEXT;
+ALTER TABLE users ADD COLUMN provider_id TEXT;
